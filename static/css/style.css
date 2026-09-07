@@ -63,6 +63,10 @@ h1,
 
 .site-header {
     border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: var(--paper);
 }
 
 .site-header .container {
@@ -164,11 +168,12 @@ h1,
     background-color: var(--ink);
     border-radius: var(--sm);
     padding: 0.5rem 1.1rem;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.5s ease-in-out;
 }
 
 .social-link:hover {
     background-color: var(--accent);
+    transform: translateY(-3px);
 }
 
 .hero-photo {
@@ -184,7 +189,7 @@ h1,
     width: 100%;
     height: 100%;
     background-color: var(--accent);
-    border-radius: var(--radius);
+    border-radius: var(--md);
     z-index: 0;
 }
 
@@ -195,8 +200,13 @@ h1,
     width: 100%;
     aspect-ratio: 1 / 1;
     object-fit: cover;
-    border-radius: var(--radius);
+    border-radius: var(--md);
     border: 3px solid var(--ink);
+    transition: transform 0.5s ease-in-out;
+}
+
+.hero-photo:hover .avatar {
+    transform: translate(20px, 20px);
 }
 
 .site-footer {
@@ -204,6 +214,7 @@ h1,
     color: var(--text-muted);
     font-size: 0.85rem;
     border-top: 1px solid var(--line);
+    margin-top: 3rem;
 }
 
 @media (max-width: 600px) {
@@ -240,6 +251,7 @@ h1,
 .experience-card {
     background-color: var(--paper);
     border: 1px solid var(--line);
+    box-shadow: 0 1px 2px var(--shadow-bg);
     padding: 1rem;
     box-sizing: border-box;
     border-radius: var(--md);
@@ -346,5 +358,21 @@ h1,
         font-size: 32px;
         display: flex;
         justify-content: center;
+    }
+
+    .hero-identity h1 {
+        font-size: 24px;
+    }
+
+    .hero-kicker {
+        font-size: 12px;
+    }
+
+    .site-header nav a {
+        font-size: 0.85rem;
+    }
+
+    .site-header nav {
+        gap: 1rem;
     }
 }
