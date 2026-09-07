@@ -85,7 +85,7 @@ SCHEMA=public
 
 ### Deployment
 
-Aplikasi ini dideploy di domain PWS (Pacil Web Service) Fasilkom UI: <a href="adrian-nathanael-portfolio.pws.cs.ui.ac.id">Akses Disini</a>.
+Aplikasi ini dideploy di domain PWS (Pacil Web Service) Fasilkom UI: <a href="https://adrian-nathanael-portfolio.pws.cs.ui.ac.id">Akses Disini</a>.
 
 ### Assignment 1
 1. Ya saya menggunakan beberapa element semantik HTML5 seperti `<header>`, `<main>`, `<section>`, `<footer>`, `<ul>`, dan `<li>`. Penggunaan elemen semantic ini membantu dalam beberapa hal:
