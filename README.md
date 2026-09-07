@@ -10,7 +10,7 @@ NPM: 2506591053
 
 Class: PBP E
 
-Aplikasi ini menyajikan profil, daftar project, dan pengalaman kerja/organisasi dalam satu halaman (single page), yang dirender oleh Django lewat template HTML alih-alih file HTML statis biasa. Konten halaman dibagi ke beberapa `<section>` semantik:
+Aplikasi ini menyajikan profil, daftar project, dan pengalaman organisasi dalam satu halaman (single page), yang dirender oleh Django lewat template HTML alih-alih file HTML statis biasa. Konten halaman dibagi ke beberapa `<section>` semantik:
 
 - **Profile (`#profile`)** — perkenalan diri: nama, kicker/judul singkat, bio, meta info, tautan sosial media, dan foto profil.
 - **Projects (`#projects`)** — daftar project yang pernah dikerjakan, ditampilkan dalam bentuk card berisi judul, deskripsi, tags teknologi, dan tautan (GitHub/npm).
