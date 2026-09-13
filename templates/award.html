@@ -26,35 +26,21 @@
     <main>
         <section class="award-section" id="award">
             <div class="container">
-                <p class="section-kicker">My achievements</p>
-                <h1>Awards</h1>
+                <h1 class="menu-title">Awards</h1>
 
                 <div class="award-grid">
                     {% for award in award_list %}
-                    <article class="award-card">
-                        <span class="award-category">
-                            {{ award.get_category_display }}
-                        </span>
-                        <h2>{{ award.title }}</h2>
-                        <p class="award-description">
-                            {{ award.description }}
-                        </p>
-                        <img src="{{ award.thumbnail }}" alt="{{ award.title }}" class="award-thumbnail">
-                        <ul class="award-keyfeatures">
-                            {% for feature in award.keyfeatures %}
-                            <li>{{ feature }}</li>
-                            {% endfor %}
-                        </ul>
-                        {% if award.is_ongoing %}
-                        <p class="award-status">Ongoing</p>
-                        {% else %}
-                        <p class="award-status">Completed</p>
+                    <div class="award-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2 class="award-title">{{ award.title }}</h2>
+                            <p class="award-date">Received on: {{ award.date_received|date:"M Y" }}</p>
+                        </div>
+                        {% if award.thumbnail %}
+                        <img class="award-thumbnail" src="{{ award.thumbnail }}" alt="{{ award.title }} thumbnail">
                         {% endif %}
-                    </article>
-                    {% empty %}
-                    <p class="empty-state">
-                        No awards have been added yet.
-                    </p>
+                        <p class="award-description">{{ award.description }}</p>
+                        <p class="award-issuer">Issued by: {{ award.issuer }}</p>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
