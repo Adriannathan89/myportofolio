@@ -15,7 +15,19 @@ jobs:
           fetch-depth: 0
       
       - name: Push to PWS
+        env:
+          PWS_USERNAME: ${{ secrets.PWS_USERNAME }}
+          PWS_PASSWORD: ${{ secrets.PWS_PASSWORD }}
+
         run: |
+          set -euo pipefail
+
           git remote add pws https://pws.cs.ui.ac.id/adrian.nathanael/portfolio
-          git push pws main:master
+
+          git config --global credential.helper store
+
+          printf 'protocol=https\nhost=pws.cs.ui.ac.id\nusername=%s\npassword=%s\n\n' \
+            "$PWS_USERNAME" "$PWS_PASSWORD" | git credential approve
+
+          git push pws HEAD:master
       
