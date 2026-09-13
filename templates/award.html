@@ -33,7 +33,7 @@
                     <div class="award-card">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <h2 class="award-title">{{ award.title }}</h2>
-                            <p class="award-date">Received on: {{ award.date_received|date:"M Y" }}</p>
+                            <p class="award-date">{{ award.date_received|date:"M Y" }}</p>
                         </div>
                         {% if award.thumbnail %}
                         <img class="award-thumbnail" src="{{ award.thumbnail }}" alt="{{ award.title }} thumbnail">
