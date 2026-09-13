@@ -17,6 +17,7 @@ class Experience(models.Model):
     description = models.TextField(blank=True, null=True)
     category = models.CharField(max_length=20, choices=EXPERIENCE_ENUM, default="freelance")
     thumbnail = models.URLField(max_length=255, blank=True, null=True)
+    keyfeatures = models.JSONField(blank=True, null=True)
     start_at = models.DateField(auto_now_add=True)
     ended_at = models.DateField(blank=True, null=True)
 
@@ -32,6 +33,7 @@ class Award(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    thumbnail = models.URLField(max_length=255, blank=True, null=True)
     issuer = models.CharField(max_length=255, blank=True, null=True)
     date_received = models.DateField(auto_now_add=True)
 
