@@ -18,6 +18,7 @@ Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama m
 - **Projects (`/#projects`)** — project yang ditampilkan sebagai card berisi deskripsi, tags teknologi, serta tautan GitHub atau npm.
 - **Experience (`/experience/`)** — data pengalaman dari model `Experience`, termasuk kategori, periode, thumbnail, deskripsi, dan key features.
 - **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer.
+- **Awards API (`/api/awards/`)** — data award dalam format JSON dan filter judul melalui query `?title=`.
 
 ### Tech Stack
 
@@ -125,6 +126,16 @@ Kedua script menggunakan interpreter `python` secara default. Interpreter dapat 
 ```bash
 python manage.py test
 ```
+
+### Award Action Key
+
+Penambahan dan penghapusan award memerlukan action key dari environment variable. Buat atau sesuaikan file `.env` secara lokal:
+
+```env
+AWARD_ACTION_KEY=ganti-dengan-kunci-rahasia
+```
+
+Key tersebut tidak disimpan ke database dan tidak boleh di-commit ke repository.
 
 ### Menjalankan dengan Konfigurasi Produksi (PostgreSQL)
 
