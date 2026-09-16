@@ -1,57 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
+{% block content %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ name }} - Portfolio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-
-<body>
-    <header class="site-header">
+<main>
+    <section class="award-section" id="award">
         <div class="container">
-            <a class="brand" href="#profile">Adrian</a>
-            <nav>
-                <a href="{% url 'main:show_main' %}">Profile</a>
-                <a href="{% url 'main:show_experience' %}">Experience</a>
-                <a href="{% url 'main:show_award' %}">Award</a>
-            </nav>
-        </div>
-    </header>
+            <h1 class="menu-title">Awards</h1>
 
-    <main>
-        <section class="award-section" id="award">
-            <div class="container">
-                <h1 class="menu-title">Awards</h1>
-
-                <div class="award-grid">
-                    {% for award in award_list %}
-                    <div class="award-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h2 class="award-title">{{ award.title }}</h2>
-                            <p class="award-date">{{ award.date_received|date:"M Y" }}</p>
-                        </div>
-                        {% if award.thumbnail %}
-                        <img class="award-thumbnail" src="{{ award.thumbnail }}" alt="{{ award.title }} thumbnail">
-                        {% endif %}
-                        <p class="award-description">{{ award.description }}</p>
-                        <p class="award-issuer">Issued by: {{ award.issuer }}</p>
+            <div class="award-grid">
+                {% for award in award_list %}
+                <div class="award-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 class="award-title">{{ award.title }}</h2>
+                        <p class="award-date">{{ award.date_received|date:"M Y" }}</p>
                     </div>
-                    {% endfor %}
+                    {% if award.thumbnail %}
+                    <img class="award-thumbnail" src="{{ award.thumbnail }}" alt="{{ award.title }} thumbnail">
+                    {% endif %}
+                    <p class="award-description">{{ award.description }}</p>
+                    <p class="award-issuer">Issued by: {{ award.issuer }}</p>
                 </div>
+                {% endfor %}
             </div>
-        </section>
-    </main>
-
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; 2026 {{ name }}. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
         </div>
-    </footer>
-</body>
-
-</html>
+    </section>
+</main>
+{% endblock content %}
