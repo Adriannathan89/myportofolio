@@ -34,6 +34,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "adrian-nathanael-myportofolio.pws.cs.ui.ac.id"]
 
 PRODUCTION = os.getenv("PRODUCTION", "False").lower() == "true"
+AWARD_ACTION_KEY = os.getenv("AWARD_ACTION_KEY", "")
 
 
 # Application definition
@@ -76,6 +77,8 @@ TEMPLATES = [
         },
     },
 ]
+
+CSRF_TRUSTED_ORIGINS = ["https://adrian-nathanael-myportofolio.pws.cs.ui.ac.id"]
 
 WSGI_APPLICATION = "myportofolio.wsgi.application"
 

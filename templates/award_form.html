@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block meta %}
+    <title>Add Award - {{ name }}</title>
+{% endblock meta %}
+
+{% block content %}
+<main>
+    <section class="award-form-section" id="award-form">
+        <div class="container">
+            <h1 class="menu-title">Add Award</h1>
+            <form 
+                method="post" 
+                class="award-form"
+                action="{% url 'main:create_award' %}"
+            >
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <small class="form-help">{{ field.help_text }}</small>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <p class="form-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <p class="form-error">{{ error }}</p>
+                {% endfor %}
+                <button type="submit" class="submit-button">Submit</button>
+                <a href="{% url 'main:show_award' %}" class="cancel-button">Cancel</a>
+            </form>
+        </div>
+    </section>
+</main>
+{% endblock content %}

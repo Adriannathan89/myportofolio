@@ -15,6 +15,7 @@ html {
     --accent-dark: #316991;
     --line: #e2e6ea;
     --text-muted: #626b74;
+    --destructive: #b42318;
     --shadow-bg: rgb(42, 43, 44);
 
     --sm: 4px;
@@ -29,6 +30,7 @@ html {
     --paper: #1c1917;
     --accent: #d95d39;
     --accent-dark: #a8442a;
+    --destructive: #b42318;
     --line: #3a3a3a;
     --text-muted: #9e9e9e;
     --shadow-bg: rgba(250, 246, 240, 0.1);
@@ -215,6 +217,25 @@ h1,
     font-size: 0.85rem;
     border-top: 1px solid var(--line);
     margin-top: 3rem;
+}
+
+.site-messages {
+    width: min(100% - 3rem, 1200px);
+    margin: 1rem auto 0;
+}
+
+.site-message {
+    border: 1px solid var(--accent-dark);
+    border-radius: var(--sm);
+    padding: 0.7rem 1rem;
+    color: var(--ink);
+    background-color: color-mix(in srgb, var(--accent) 18%, var(--paper));
+}
+
+.site-message--error {
+    border-color: var(--destructive);
+    color: var(--destructive);
+    background-color: color-mix(in srgb, var(--destructive) 10%, var(--paper));
 }
 
 @media (max-width: 600px) {
@@ -412,6 +433,190 @@ h1,
 }
 
 /* Award Section */
+.award-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.add-award-button,
+.submit-button,
+.cancel-button,
+.delete-button,
+.search-button,
+.delete-confirm-button {
+    display: inline-block;
+    border: 1px solid var(--ink);
+    border-radius: var(--sm);
+    padding: 0.5rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.add-award-button,
+.submit-button,
+.search-button {
+    color: var(--paper);
+    background-color: var(--ink);
+}
+
+.cancel-button {
+    color: var(--ink);
+    background-color: transparent;
+}
+
+.delete-button {
+    color: var(--destructive);
+    background-color: transparent;
+    border-color: var(--destructive);
+}
+
+.add-award-button:hover,
+.submit-button:hover,
+.cancel-button:hover {
+    background-color: var(--accent);
+    color: var(--paper);
+}
+
+.delete-button:hover {
+    color: var(--paper);
+    background-color: var(--destructive);
+}
+
+.delete-confirm-button {
+    color: var(--paper);
+    background-color: var(--destructive);
+    border-color: var(--destructive);
+}
+
+.delete-confirm-button:hover {
+    background-color: var(--ink);
+    border-color: var(--ink);
+}
+
+.award-form {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    font-weight: 600;
+}
+
+.form-control {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: var(--sm);
+    padding: 0.7rem 0.8rem;
+    color: var(--ink);
+    background-color: var(--paper);
+    font: inherit;
+}
+
+.form-control:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.form-error {
+    color: var(--destructive);
+    font-size: 0.875rem;
+}
+
+.form-help {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.award-actions {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+}
+
+.award-search {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.award-search__input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--sm);
+    padding: 0.7rem 0.8rem;
+    color: var(--ink);
+    background-color: var(--paper);
+    font: inherit;
+}
+
+.award-search__input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.award-delete-modal {
+    width: min(100% - 2rem, 480px);
+    margin: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--md);
+    padding: 1.5rem;
+    color: var(--ink);
+    background-color: var(--paper);
+    box-shadow: 0 1rem 3rem rgba(18, 24, 31, 0.22);
+}
+
+.award-delete-modal::backdrop {
+    background-color: rgba(18, 24, 31, 0.58);
+}
+
+.award-delete-modal h2 {
+    margin-bottom: 8px;
+    font-size: 24px;
+}
+
+.award-delete-modal__close {
+    float: right;
+    border: 0;
+    padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.award-delete-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.award-delete-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.submit-button,
+.cancel-button {
+    margin-right: 8px;
+}
+
 .award-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -433,6 +638,8 @@ h1,
     flex-direction: column;
     align-self: start;
     height: 500px;
+    position: relative;
+    padding-bottom: 4.5rem;
 }
 
 .award-grid .award-card:hover {
@@ -494,10 +701,23 @@ h1,
 }
 
 @media (max-width: 600px) {
+    .award-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
     .award-grid {
         grid-template-columns: 1fr;
         gap: 16px;
         margin-top: 8px;
+    }
+
+    .award-search {
+        flex-direction: column;
+    }
+
+    .search-button {
+        width: 100%;
     }
 
     .award-grid .award-card {

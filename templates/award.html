@@ -1,57 +1,98 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
+{% block content %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ name }} - Portfolio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-
-<body>
-    <header class="site-header">
+<main>
+    <section class="award-section" id="award">
         <div class="container">
-            <a class="brand" href="#profile">Adrian</a>
-            <nav>
-                <a href="{% url 'main:show_main' %}">Profile</a>
-                <a href="{% url 'main:show_experience' %}">Experience</a>
-                <a href="{% url 'main:show_award' %}">Award</a>
-            </nav>
-        </div>
-    </header>
-
-    <main>
-        <section class="award-section" id="award">
-            <div class="container">
+            <div class="award-heading">
                 <h1 class="menu-title">Awards</h1>
-
-                <div class="award-grid">
-                    {% for award in award_list %}
-                    <div class="award-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h2 class="award-title">{{ award.title }}</h2>
-                            <p class="award-date">{{ award.date_received|date:"M Y" }}</p>
-                        </div>
-                        {% if award.thumbnail %}
-                        <img class="award-thumbnail" src="{{ award.thumbnail }}" alt="{{ award.title }} thumbnail">
-                        {% endif %}
-                        <p class="award-description">{{ award.description }}</p>
-                        <p class="award-issuer">Issued by: {{ award.issuer }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
+                <a href="{% url 'main:create_award' %}" class="add-award-button">Add Award</a>
             </div>
-        </section>
-    </main>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; 2026 {{ name }}. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
+            <form method="get" action="{% url 'main:show_award' %}" class="award-search">
+                <input
+                    type="search"
+                    name="title"
+                    value="{{ title_query }}"
+                    placeholder="Search by award title"
+                    class="award-search__input"
+                    aria-label="Search by award title"
+                >
+                <button type="submit" class="search-button">Search</button>
+            </form>
+
+            <div class="award-grid">
+                {% for award in award_list %}
+                <div class="award-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 class="award-title">{{ award.title }}</h2>
+                        <p class="award-date">{{ award.date_received|date:"M Y" }}</p>
+                    </div>
+                    {% if award.thumbnail %}
+                    <img class="award-thumbnail" src="{{ award.thumbnail }}" alt="{{ award.title }} thumbnail">
+                    {% endif %}
+                    <p class="award-description">{{ award.description }}</p>
+                    <p class="award-issuer">Issued by: {{ award.issuer }}</p>
+                    <div class="award-actions">
+                        <button
+                            type="button"
+                            class="delete-button"
+                            popovertarget="delete-award-{{ award.id }}"
+                            aria-label="Delete {{ award.title }}"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                    <div
+                        id="delete-award-{{ award.id }}"
+                        class="award-delete-modal"
+                        popover="auto"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-award-title-{{ award.id }}"
+                    >
+                        <button
+                            type="button"
+                            class="award-delete-modal__close"
+                            popovertarget="delete-award-{{ award.id }}"
+                            popovertargetaction="hide"
+                            aria-label="Close delete confirmation"
+                        >
+                            &times;
+                        </button>
+                        <h2 id="delete-award-title-{{ award.id }}">Delete Award?</h2>
+                        <p>Are you sure you want to delete <strong>{{ award.title }}</strong>?</p>
+                        <form method="post" action="{% url 'main:delete_award' award.id %}" class="award-delete-form">
+                            {% csrf_token %}
+                            <label for="delete-action-key-{{ award.id }}">Action Key</label>
+                            <input
+                                type="password"
+                                name="action_key"
+                                id="delete-action-key-{{ award.id }}"
+                                class="form-control"
+                                placeholder="Enter action key"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <div class="award-delete-modal__actions">
+                                <button
+                                    type="button"
+                                    class="cancel-button"
+                                    popovertarget="delete-award-{{ award.id }}"
+                                    popovertargetaction="hide"
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" class="delete-confirm-button">Yes, Delete</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="empty-state">No awards have been added yet.</p>
+                {% endfor %}
+            </div>
         </div>
-    </footer>
-</body>
-
-</html>
+    </section>
+</main>
+{% endblock content %}

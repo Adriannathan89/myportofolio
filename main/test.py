@@ -1,12 +1,15 @@
-from django.test import TestCase
+import json
+
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from datetime import date
 from pathlib import Path
 
-from main.models import Experience
+from main.models import Award, Experience
 
 
+@override_settings(AWARD_ACTION_KEY="test-award-key")
 class MainTest(TestCase):
     def setUp(self):
         self.experience = Experience.objects.create(
@@ -62,6 +65,220 @@ class MainTest(TestCase):
         self.assertIn("date(2024, 8, 1)", script)
         self.assertIn("date(2023, 9, 1)", script)
 
+    def test_award_form_displays_all_fields(self):
+        response = self.client.get(reverse("main:create_award"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "award_form.html")
+        for field_name in ("title", "description", "thumbnail", "issuer", "date_received"):
+            self.assertContains(response, f'name="{field_name}"')
+        self.assertContains(response, 'type="date"')
+
+    def test_award_form_rejects_submission_without_required_fields(self):
+        response = self.client.post(reverse("main:create_award"), data={})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "award_form.html")
+        self.assertContains(response, "This field is required.")
+        self.assertEqual(Award.objects.count(), 0)
+
+    def test_award_form_saves_valid_submission_and_redirects_to_awards(self):
+        response = self.client.post(
+            reverse("main:create_award"),
+            data={
+                "title": "Hackathon Winner",
+                "description": "Won first place.",
+                "thumbnail": "https://example.com/award.png",
+                "issuer": "Tech Community",
+                "date_received": "2026-09-16",
+                "action_key": "test-award-key",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "Award added successfully.")
+        award = Award.objects.get(title="Hackathon Winner")
+        self.assertEqual(award.description, "Won first place.")
+        self.assertEqual(award.date_received, date(2026, 9, 16))
+
+    def test_awards_json_endpoint_returns_serialized_awards(self):
+        Award.objects.create(
+            title="JSON Award",
+            description="Serialized award.",
+            issuer="Issuer",
+            date_received=date(2026, 9, 16),
+        )
+
+        response = self.client.get("/api/awards/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/json")
+        payload = json.loads(response.content)
+        self.assertEqual(payload[0]["model"], "main.award")
+        self.assertEqual(payload[0]["fields"]["title"], "JSON Award")
+
+    def test_awards_json_endpoint_filters_awards_by_title(self):
+        Award.objects.create(title="Logic Competition", date_received=date(2026, 9, 16))
+        Award.objects.create(title="Programming Contest", date_received=date(2026, 9, 16))
+
+        response = self.client.get("/api/awards/?title=logic")
+
+        self.assertEqual(response.status_code, 200)
+        payload = json.loads(response.content)
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["fields"]["title"], "Logic Competition")
+
+    def test_award_page_filters_awards_and_preserves_search_query(self):
+        Award.objects.create(title="Logic Competition", date_received=date(2026, 9, 16))
+        Award.objects.create(title="Programming Contest", date_received=date(2026, 9, 16))
+
+        response = self.client.get(reverse("main:show_award"), {"title": "logic"})
+
+        self.assertContains(response, "Logic Competition")
+        self.assertNotContains(response, "Programming Contest")
+        self.assertContains(response, 'name="title"')
+        self.assertContains(response, 'value="logic"')
+
+    def test_award_page_renders_delete_popover_with_action_key_input(self):
+        award = Award.objects.create(title="Protected Award", date_received=date(2026, 9, 16))
+
+        response = self.client.get(reverse("main:show_award"))
+
+        self.assertContains(response, f'popovertarget="delete-award-{award.id}"')
+        self.assertContains(response, 'role="dialog"')
+        self.assertContains(response, 'name="action_key"')
+
+    def test_award_form_rejects_an_incorrect_action_key(self):
+        response = self.client.post(
+            reverse("main:create_award"),
+            data={
+                "title": "Unauthorized Award",
+                "date_received": "2026-09-16",
+                "action_key": "wrong-key",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid action key.")
+        self.assertFalse(Award.objects.filter(title="Unauthorized Award").exists())
+
+    @override_settings(AWARD_ACTION_KEY="")
+    def test_award_form_rejects_submission_when_action_key_is_not_configured(self):
+        response = self.client.post(
+            reverse("main:create_award"),
+            data={
+                "title": "Unconfigured Award",
+                "date_received": "2026-09-16",
+                "action_key": "test-award-key",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid action key.")
+        self.assertFalse(Award.objects.filter(title="Unconfigured Award").exists())
+
+    def test_award_form_accepts_relative_thumbnail_path(self):
+        response = self.client.post(
+            reverse("main:create_award"),
+            data={
+                "title": "Local Certificate",
+                "description": "Certificate stored in static files.",
+                "thumbnail": "/static/img/local-certificate.jpeg",
+                "issuer": "Local Organization",
+                "date_received": "2026-09-16",
+                "action_key": "test-award-key",
+            },
+        )
+
+        self.assertRedirects(response, reverse("main:show_award"))
+        award = Award.objects.get(title="Local Certificate")
+        self.assertEqual(award.thumbnail, "/static/img/local-certificate.jpeg")
+
+    def test_award_page_places_add_button_with_link_to_award_form(self):
+        response = self.client.get(reverse("main:show_award"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'href="{reverse("main:create_award")}"',
+        )
+        self.assertContains(response, "Add Award")
+
+    def test_award_page_renders_delete_action_for_each_award(self):
+        award = Award.objects.create(
+            title="Award to Remove",
+            description="An award that can be removed.",
+            date_received=date(2026, 9, 16),
+        )
+
+        response = self.client.get(reverse("main:show_award"))
+
+        self.assertContains(
+            response,
+            f'action="/award/{award.id}/delete/"',
+        )
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        self.assertContains(response, "Delete")
+
+    def test_delete_award_removes_award_and_redirects_to_awards(self):
+        award = Award.objects.create(
+            title="Award to Remove",
+            date_received=date(2026, 9, 16),
+        )
+
+        response = self.client.post(
+            f"/award/{award.id}/delete/",
+            data={"action_key": "test-award-key"},
+            follow=True,
+        )
+
+        self.assertContains(response, "Award deleted successfully.")
+        self.assertFalse(Award.objects.filter(pk=award.id).exists())
+
+    def test_delete_award_keeps_award_when_action_key_is_incorrect(self):
+        award = Award.objects.create(
+            title="Protected Award",
+            date_received=date(2026, 9, 16),
+        )
+
+        response = self.client.post(
+            f"/award/{award.id}/delete/",
+            data={"action_key": "wrong-key"},
+            follow=True,
+        )
+
+        self.assertContains(response, "Invalid action key.")
+        self.assertTrue(Award.objects.filter(pk=award.id).exists())
+
+    @override_settings(AWARD_ACTION_KEY="")
+    def test_delete_award_keeps_award_when_action_key_is_not_configured(self):
+        award = Award.objects.create(
+            title="Unconfigured Award",
+            date_received=date(2026, 9, 16),
+        )
+
+        response = self.client.post(
+            f"/award/{award.id}/delete/",
+            data={"action_key": "test-award-key"},
+            follow=True,
+        )
+
+        self.assertContains(response, "Invalid action key.")
+        self.assertTrue(Award.objects.filter(pk=award.id).exists())
+
+    def test_delete_award_rejects_get_requests(self):
+        award = Award.objects.create(
+            title="Protected Award",
+            date_received=date(2026, 9, 16),
+        )
+
+        response = self.client.get(
+            f"/award/{award.id}/delete/"
+        )
+
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(Award.objects.filter(pk=award.id).exists())
+
     def test_award_grid_aligns_cards_to_their_content(self):
         stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
@@ -90,6 +307,24 @@ class MainTest(TestCase):
         )
         self.assertIn("object-fit: cover;", stylesheet)
         self.assertIn("object-position: top;", stylesheet)
+
+    def test_award_delete_action_is_pinned_to_the_card_bottom_right(self):
+        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet = stylesheet_path.read_text()
+
+        card_start = stylesheet.index(".award-grid .award-card {")
+        card_end = stylesheet.index("}\n", card_start)
+        award_card_rules = stylesheet[card_start:card_end]
+
+        self.assertIn("    position: relative;\n", award_card_rules)
+        self.assertIn(
+            ".award-actions {\n"
+            "    position: absolute;\n"
+            "    right: 16px;\n"
+            "    bottom: 16px;\n"
+            "}",
+            stylesheet,
+        )
 
     def test_nonexistent_page_returns_404(self):
         response = self.client.get("/a-page-that-does-not-exist/")
