@@ -4,7 +4,10 @@
 <main>
     <section class="award-section" id="award">
         <div class="container">
-            <h1 class="menu-title">Awards</h1>
+            <div class="award-heading">
+                <h1 class="menu-title">Awards</h1>
+                <a href="{% url 'main:create_award' %}" class="add-award-button">Add Award</a>
+            </div>
 
             <div class="award-grid">
                 {% for award in award_list %}
@@ -18,7 +21,15 @@
                     {% endif %}
                     <p class="award-description">{{ award.description }}</p>
                     <p class="award-issuer">Issued by: {{ award.issuer }}</p>
+                    <div class="award-actions">
+                        <form method="post" action="{% url 'main:delete_award' award.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="delete-button">Delete</button>
+                        </form>
+                    </div>
                 </div>
+                {% empty %}
+                <p class="empty-state">No awards have been added yet.</p>
                 {% endfor %}
             </div>
         </div>

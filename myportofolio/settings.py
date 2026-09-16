@@ -77,6 +77,8 @@ TEMPLATES = [
     },
 ]
 
+CSRF_TRUSTED_ORIGINS = ["https://adrian-nathanael-myportofolio.pws.cs.ui.ac.id"]
+
 WSGI_APPLICATION = "myportofolio.wsgi.application"
 
 
