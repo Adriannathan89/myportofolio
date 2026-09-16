@@ -9,6 +9,18 @@
                 <a href="{% url 'main:create_award' %}" class="add-award-button">Add Award</a>
             </div>
 
+            <form method="get" action="{% url 'main:show_award' %}" class="award-search">
+                <input
+                    type="search"
+                    name="title"
+                    value="{{ title_query }}"
+                    placeholder="Search by award title"
+                    class="award-search__input"
+                    aria-label="Search by award title"
+                >
+                <button type="submit" class="search-button">Search</button>
+            </form>
+
             <div class="award-grid">
                 {% for award in award_list %}
                 <div class="award-card">
@@ -22,9 +34,57 @@
                     <p class="award-description">{{ award.description }}</p>
                     <p class="award-issuer">Issued by: {{ award.issuer }}</p>
                     <div class="award-actions">
-                        <form method="post" action="{% url 'main:delete_award' award.id %}">
+                        <button
+                            type="button"
+                            class="delete-button"
+                            popovertarget="delete-award-{{ award.id }}"
+                            aria-label="Delete {{ award.title }}"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                    <div
+                        id="delete-award-{{ award.id }}"
+                        class="award-delete-modal"
+                        popover="auto"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-award-title-{{ award.id }}"
+                    >
+                        <button
+                            type="button"
+                            class="award-delete-modal__close"
+                            popovertarget="delete-award-{{ award.id }}"
+                            popovertargetaction="hide"
+                            aria-label="Close delete confirmation"
+                        >
+                            &times;
+                        </button>
+                        <h2 id="delete-award-title-{{ award.id }}">Delete Award?</h2>
+                        <p>Are you sure you want to delete <strong>{{ award.title }}</strong>?</p>
+                        <form method="post" action="{% url 'main:delete_award' award.id %}" class="award-delete-form">
                             {% csrf_token %}
-                            <button type="submit" class="delete-button">Delete</button>
+                            <label for="delete-action-key-{{ award.id }}">Action Key</label>
+                            <input
+                                type="password"
+                                name="action_key"
+                                id="delete-action-key-{{ award.id }}"
+                                class="form-control"
+                                placeholder="Enter action key"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <div class="award-delete-modal__actions">
+                                <button
+                                    type="button"
+                                    class="cancel-button"
+                                    popovertarget="delete-award-{{ award.id }}"
+                                    popovertargetaction="hide"
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" class="delete-confirm-button">Yes, Delete</button>
+                            </div>
                         </form>
                     </div>
                 </div>

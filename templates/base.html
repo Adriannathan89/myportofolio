@@ -24,6 +24,13 @@
             </nav>
         </div>
     </header>
+    {% if messages %}
+    <div class="site-messages" aria-live="polite">
+        {% for message in messages %}
+        <p class="site-message site-message--{{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% block content %}{% endblock content %}
     <footer class="site-footer">
         <div class="container">

@@ -1,9 +1,28 @@
-from django.forms import CharField, DateInput, ModelForm, TextInput, Textarea
+from django.forms import CharField, DateInput, Form, ModelForm, PasswordInput, TextInput, Textarea
 
 from main.models import Award
 
 
+def action_key_field():
+    return CharField(
+        label="Action Key",
+        strip=False,
+        widget=PasswordInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Enter action key",
+                "autocomplete": "current-password",
+            }
+        ),
+    )
+
+
+class AwardActionKeyForm(Form):
+    action_key = action_key_field()
+
+
 class AwardForm(ModelForm):
+    action_key = action_key_field()
     thumbnail = CharField(
         max_length=255,
         required=False,
