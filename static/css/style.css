@@ -553,7 +553,7 @@ h1,
 .award-search {
     display: flex;
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 36px;
 }
 
 .award-search__input {
