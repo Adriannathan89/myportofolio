@@ -34,7 +34,7 @@ Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama m
 
 Data portfolio yang bersifat dinamis berada di aplikasi `main`:
 
-- `Experience` menyimpan `title`, `description`, `category`, `thumbnail`, `keyfeatures`, `start_at`, dan `ended_at`.
+- `Experience` menyimpan `title`, `description`, `category`, `thumbnail`, `keyfeatures`, `start_at`, `ended_at`, `created_at`, dan `updated_at`. Timestamp dibuat otomatis saat record baru dibuat, tetapi keduanya dapat bernilai `NULL`.
 - `Award` menyimpan `title`, `description`, `thumbnail`, `issuer`, dan `date_received`.
 - Migrasi database berada di `main/migrations/`.
 - Data awal dapat dibuat atau diperbarui secara idempotent menggunakan script di folder `scripts/`.

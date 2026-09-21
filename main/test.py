@@ -3,6 +3,7 @@ import json
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.core.exceptions import FieldDoesNotExist
 from datetime import date
 from pathlib import Path
 
@@ -336,6 +337,44 @@ class MainTest(TestCase):
         self.assertEqual(self.experience.category, "part-time")
         self.assertTrue(self.experience.is_ongoing)
 
+    def test_experience_start_at_is_not_set_automatically(self):
+        experience = Experience.objects.create(title="Experience Without Start Date")
+
+        self.assertIsNone(experience.start_at)
+
+    def test_experience_start_at_accepts_a_manually_selected_date(self):
+        selected_start_date = date(2024, 1, 15)
+        experience = Experience.objects.create(
+            title="Experience With Start Date",
+            start_at=selected_start_date,
+        )
+
+        self.assertEqual(experience.start_at, selected_start_date)
+
+    def test_experience_model_does_not_include_thumbnail(self):
+        with self.assertRaises(FieldDoesNotExist):
+            Experience._meta.get_field("thumbnail")
+
+    def test_experience_timestamps_default_to_current_time(self):
+        before_create = timezone.now()
+        experience = Experience.objects.create(title="Timestamped Experience")
+        after_create = timezone.now()
+
+        self.assertGreaterEqual(experience.created_at, before_create)
+        self.assertLessEqual(experience.created_at, after_create)
+        self.assertGreaterEqual(experience.updated_at, before_create)
+        self.assertLessEqual(experience.updated_at, after_create)
+
+    def test_experience_timestamps_accept_null_values(self):
+        experience = Experience.objects.create(
+            title="Experience Without Timestamps",
+            created_at=None,
+            updated_at=None,
+        )
+
+        self.assertIsNone(experience.created_at)
+        self.assertIsNone(experience.updated_at)
+
     def test_experience_page(self):
         response = self.client.get(reverse("main:show_experience"))
 
@@ -348,12 +387,10 @@ class MainTest(TestCase):
         self.assertContains(response, f'href="{reverse("main:show_main")}"')
 
     def test_experience_page_renders_all_experience_fields(self):
-        thumbnail = "https://example.com/experience.png"
         keyfeatures = [
             "Built the frontend",
             "Built the backend",
         ]
-        self.experience.thumbnail = thumbnail
         self.experience.keyfeatures = keyfeatures
         self.experience.save()
         Experience.objects.filter(pk=self.experience.pk).update(
@@ -363,7 +400,6 @@ class MainTest(TestCase):
 
         response = self.client.get(reverse("main:show_experience"))
 
-        self.assertContains(response, thumbnail)
         self.assertContains(response, self.experience.get_category_display())
         self.assertContains(response, self.experience.title)
         self.assertContains(response, self.experience.description)
