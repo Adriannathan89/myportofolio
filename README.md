@@ -280,3 +280,5 @@ Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QueryS
 * Saya juga menggunakan AI untuk memperbaharui dokumentasi dari readme yang menjelaskan project structure dari project ini
 
 * Model AI yang digunakan GPT-5.6-Terra (Medium)
+
+* Prompt history tersedia di AI_DISCLOSURE#3.md
