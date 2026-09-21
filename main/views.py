@@ -25,9 +25,16 @@ def show_main(request):
 
 
 def show_experience(request):
+    title_query = request.GET.get("title", "").strip()
+    experience_list = Experience.objects.all()
+
+    if title_query:
+        experience_list = experience_list.filter(title__icontains=title_query)
+
     context = {
         "name": "Adrian Nathanael Setiawan",
-        "experience_list": Experience.objects.all(),
+        "experience_list": experience_list,
+        "title_query": title_query,
     }
     return render(request, "experience.html", context)
 
@@ -115,13 +122,13 @@ def create_experience(request):
         "form": form,
     }
 
-    return render(request, "experience_form.html", context)
+    return render(request, "experience_create_form.html", context)
 
 def update_experience(request, experience_id):
     experience = get_object_or_404(Experience, id=experience_id)
     form = ExperienceForm(request.POST if request.method == "POST" else None, instance=experience)
 
-    if request.method == "P" and form.is_valid() and _is_valid_action_key(form.cleaned_data["action_key"]):
+    if request.method == "POST" and form.is_valid() and _is_valid_action_key(form.cleaned_data["action_key"]):
         form.save()
         messages.success(request, "Experience updated successfully.")
         return redirect("main:show_experience")
@@ -133,7 +140,7 @@ def update_experience(request, experience_id):
         "experience": experience,
     }
 
-    return render(request, "experience_form.html", context)
+    return render(request, "experience_update_form.html", context)
 
 @require_POST
 def delete_experience(request, experience_id):

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block meta %}
+    <title>Update Experience - {{ name }}</title>
+{% endblock meta %}
+
+{% block content %}
+<main>
+    <section class="award-form-section" id="experience-update-form">
+        <div class="container">
+            <h1 class="menu-title">Update Experience</h1>
+            <form method="post" class="award-form" action="{% url 'main:update_experience' experience.id %}">
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <small class="form-help">{{ field.help_text }}</small>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <p class="form-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <p class="form-error">{{ error }}</p>
+                {% endfor %}
+                <button type="submit" class="submit-button">Save</button>
+                <a href="{% url 'main:show_experience' %}" class="cancel-button">Cancel</a>
+                <button
+                    type="button"
+                    class="delete-button"
+                    popovertarget="delete-experience-{{ experience.id }}"
+                    aria-label="Delete {{ experience.title }}"
+                >Delete</button>
+            </form>
+
+            <div
+                id="delete-experience-{{ experience.id }}"
+                class="award-delete-modal"
+                popover
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-experience-title-{{ experience.id }}"
+            >
+                <button
+                    type="button"
+                    class="award-delete-modal__close"
+                    popovertarget="delete-experience-{{ experience.id }}"
+                    popovertargetaction="hide"
+                    aria-label="Close delete confirmation"
+                >&times;</button>
+                <h2 id="delete-experience-title-{{ experience.id }}">Delete Experience?</h2>
+                <p>Are you sure you want to delete <strong>{{ experience.title }}</strong>?</p>
+                <form method="post" action="{% url 'main:delete_experience' experience.id %}" class="award-delete-form">
+                    {% csrf_token %}
+                    <label for="delete-action-key-{{ experience.id }}">Action Key</label>
+                    <input
+                        type="password"
+                        name="action_key"
+                        id="delete-action-key-{{ experience.id }}"
+                        class="form-control"
+                        placeholder="Enter action key"
+                        autocomplete="current-password"
+                        required
+                    >
+                    <div class="award-delete-modal__actions">
+                        <button type="submit" class="delete-confirm-button">Delete</button>
+                        <button
+                            type="button"
+                            class="cancel-button"
+                            popovertarget="delete-experience-{{ experience.id }}"
+                            popovertargetaction="hide"
+                        >Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock content %}
