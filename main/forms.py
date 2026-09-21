@@ -1,4 +1,4 @@
-from django.forms import CharField, DateInput, Form, ModelForm, PasswordInput, TextInput, Textarea
+from django.forms import CharField, DateInput, Form, ModelForm, PasswordInput, Select, TextInput, Textarea
 
 from main.models import Award, Experience
 
@@ -102,8 +102,8 @@ class ExperienceForm(ModelForm):
             "description": Textarea(
                 attrs={"class": "form-control", "placeholder": "Enter description"}
             ),
-            "category": TextInput(
-                attrs={"class": "form-control", "placeholder": "Enter category"}
+            "category": Select(
+                attrs={"class": "form-control"}
             ),
             "keyfeatures": Textarea(
                 attrs={

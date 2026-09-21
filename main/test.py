@@ -7,6 +7,7 @@ from django.core.exceptions import FieldDoesNotExist
 from datetime import date
 from pathlib import Path
 
+from main.forms import ExperienceForm
 from main.models import Award, Experience
 
 
@@ -336,6 +337,22 @@ class MainTest(TestCase):
         self.assertEqual(str(self.experience), "PBP Teaching Assistant")
         self.assertEqual(self.experience.category, "part-time")
         self.assertTrue(self.experience.is_ongoing)
+
+    def test_experience_form_offers_category_enum_as_a_dropdown(self):
+        form = ExperienceForm()
+
+        self.assertEqual(
+            list(form.fields["category"].choices),
+            [
+                ("internship", "Internship"),
+                ("research", "Research"),
+                ("volunteer", "Volunteer"),
+                ("part-time", "Part-Time"),
+                ("full-time", "Full-Time"),
+                ("freelance", "Freelance"),
+            ],
+        )
+        self.assertIn('<select name="category"', form.as_p())
 
     def test_experience_start_at_is_not_set_automatically(self):
         experience = Experience.objects.create(title="Experience Without Start Date")

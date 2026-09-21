@@ -5,8 +5,8 @@ import uuid
 # Create your models here.
 class Experience(models.Model):
     EXPERIENCE_ENUM = [
-        ("internship", "Internshipo"),
-        ("reseach", "Research"),
+        ("internship", "Internship"),
+        ("research", "Research"),
         ("volunteer", "Volunteer"),
         ("part-time", "Part-Time"),
         ("full-time", "Full-Time"),
