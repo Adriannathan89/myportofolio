@@ -233,6 +233,27 @@ Berdasarkan limitasi tersebut, fungsi dinamis yang paling ingin ditambahkan di i
 
 3. `makemigrations` merupakan script untuk membuat file migrasi yang nantinya file ini berada di `migrations/` file ini merupakan generated django yang aslinya merupakan script untuk membuat table sql, namun alih-alih membuat file migrasi sql manual django memudahkan kita dengan membuatkan file yang bisa kita running dengan menggunakan script `migrate` untuk memasukan perubahan terhadap table kedalam database kita. misalnya saat kita membuat model baru `roles` dengan fieldsnya, saat kita jalankan `makemigrations` django membuatkan file migrasi terhadap model `roles` tersebut. di database, tabel `roles` tersebut belum ada sampai kita menjalankan script `migrate`.  
 
+### Asssignment 3
+1. Kita menggunakan Django ModelForm karena ada beberapa keuntungan yang bisa kita peroleh dibandingkan dengan membuat form manual dari html diantaranya:
+   - Kita tidak perlu menuliskan input pada form satu satu, dengan menggunakan django form kita memanggilnya dengan lebih mudah pada template htmlnya sesuai dengan model yang kita definisikan formnya
+   - Kita bisa langsung melakukan validasi input terhadap formnya tidak perlu manual validation jika kita menggunakan django form
+   - Jika kita manambahkan field baru pada modelnya kita tidak perlu "menyentuh" template htmlnya secara langsung
+Lalu kita perlu menggunakan `{% csrf_token %}` untuk mencegah serangan Cross-Site Request Foregery, yaitu ketika pihak ketiga mencoba mengirimkan request atas nama user lain tanpa user tersebut mengetahuinya. dengan menggunakan CRSF_TOKEN, django dapat memverifikasi bahwa request yang masuk benar benar berasal dari form yang di render oleh server itu sendiri bukan dari sumber external yang mencoba memalsukan requestnya
+
+2. JSON lebih populer dan lebih disukai pada pengembangan modern dibandingkan XML karena:
+   - Lebih ringkas, JSON tidak memerlukan closing tag seperti XML, sehingga ukuran bisa lebih data bisa lebih kecil dan transfer data bisa lebih cepat
+   - Lebih mudah dibaca manusia, structur JSON yang sederhana seperti pair key dan value lebih mudah dibaca manusia dibandingkan dengan XML yang berisi tag-tag yang sulit dibaca jika sudah menumpuk
+   - Parsing lebih cepat dan ringan, karena kesederhanaan dan keringkasannya, memparser JSON akan jauh lebih mudah dibandingkan dengan XML
+   - JSON merupakan representasi object javascript sehingga parsernya pada browser tidak memerlukan library tambahan.
+
+3. Alur ketika view function menggembalikan data portfolio dalam bentuk JSON:
+   1. Request masuk -> request user/browser masuk ketika mekases url terntu yang sudah dipetakan ke view function di urls.py
+   2. Query ke Database -> view function melakukan query ke database via django ORM, dan mengambalikan `QuerySet`
+   3. Serialisasi -> data dari `QuerySet` yang berbentuk Django model di serialisasi ke format json
+   4. Return Respon -> hasil serialisasi yang berbentuk `JSON` dikembalikan melalui `HTTPResponse` dan client bisa menerima response murni berbentuk `JSON`
+   5. Deserialisasi Client Side -> JavaScript pada browser melakukan `fetch()`ke endpoint yang sudah dipetakan tadi, menerima response JSON dan men-deserialise string json tadi kedalam bentuk object javascript navite sehingga hasilnya dapat ditampilkan secara dinamis di halaman web.
+Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QuerySet` atau Django model yang berbahasa python, sedangkan browser yang menggunakan bahasa javascript tidak dapat memahami apa itu Django model sehingga hasil dari `QuerySet` tadi di serialisasi ke dalam bentuk `JSON` dan dikirimkan bentuk stringnya sehingga nantinya browser tinggal tinggal parse string tersebut kedalam bentuk java script object navite dan dapat diproses.
+
 ### AI Disclosure
 
 ## Assignment 1
@@ -250,3 +271,12 @@ Berdasarkan limitasi tersebut, fungsi dinamis yang paling ingin ditambahkan di i
 * Serta saya menggunakan AI untuk memperbaharui dokumentasi dari readme yang menjelaskan project structure dari project ini.
 
 * model AI yang digunakan GPT-5.6-Luna (Xhigh)
+
+## Assignment 3
+* pada assignment 3 saya membuatkan abstraction model dan juga templatenya terlebih dahulu yaitu pada section award secara manual dan juga membuatkan Django model untuk experience. lalu saya menggunakan AI untuk melakukan perubahan yang dibatasi terhadap experience saja dengan memberikan abstraksi model dan juga memberikan context bagaimana perubahan harus dilakukan dan juga memberikan referensi designnya berdasarkan section award yang sudah saya buat sebelumnya.
+
+* dengan approach baru ini, AI yang sebelumnya cukup buruk dalam melakukan perubahan terhadap design menjadi sesuai ekspektasi, saya tidak memerlukan prompt yang berkaitan dengan fixing tidak seperti pada approach sebelumnya yang mana yang lansung memerintahkannya untuk melakukan perubahan design.
+
+* Saya juga menggunakan AI untuk memperbaharui dokumentasi dari readme yang menjelaskan project structure dari project ini
+
+* Model AI yang digunakan GPT-5.6-Terra (Medium)
