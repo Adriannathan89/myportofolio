@@ -354,6 +354,133 @@ class MainTest(TestCase):
         )
         self.assertIn('<select name="category"', form.as_p())
 
+    def test_create_experience_form_displays_all_editable_fields(self):
+        response = self.client.get(reverse("main:create_experience"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "experience_create_form.html")
+        for field_name in (
+            "title",
+            "description",
+            "category",
+            "keyfeatures",
+            "start_at",
+            "ended_at",
+            "action_key",
+        ):
+            self.assertContains(response, f'name="{field_name}"')
+
+    def test_create_experience_saves_valid_submission(self):
+        response = self.client.post(
+            reverse("main:create_experience"),
+            data={
+                "title": "Software Engineering Intern",
+                "description": "Built internal tools.",
+                "category": "internship",
+                "keyfeatures": '["Built dashboards"]',
+                "start_at": "2025-01-15",
+                "ended_at": "2025-06-15",
+                "action_key": "test-award-key",
+            },
+        )
+
+        self.assertRedirects(response, reverse("main:show_experience"))
+        experience = Experience.objects.get(title="Software Engineering Intern")
+        self.assertEqual(experience.category, "internship")
+        self.assertEqual(experience.keyfeatures, ["Built dashboards"])
+        self.assertEqual(experience.start_at, date(2025, 1, 15))
+        self.assertEqual(experience.ended_at, date(2025, 6, 15))
+
+    def test_update_experience_form_is_prepopulated_and_offers_delete_confirmation(self):
+        self.experience.start_at = date(2025, 1, 15)
+        self.experience.save()
+
+        response = self.client.get(
+            reverse("main:update_experience", args=[self.experience.id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "experience_update_form.html")
+        self.assertContains(response, 'value="PBP Teaching Assistant"')
+        self.assertContains(response, 'value="2025-01-15"')
+        self.assertContains(response, "Save")
+        self.assertContains(response, "Delete")
+        self.assertContains(response, f'popovertarget="delete-experience-{self.experience.id}"')
+        self.assertContains(response, 'role="dialog"')
+        self.assertContains(response, f'action="/experience/{self.experience.id}/delete/"')
+
+    def test_update_experience_saves_valid_submission(self):
+        response = self.client.post(
+            reverse("main:update_experience", args=[self.experience.id]),
+            data={
+                "title": "Updated Teaching Assistant",
+                "description": "Guided students through Django.",
+                "category": "full-time",
+                "keyfeatures": '["Held office hours"]',
+                "start_at": "2025-01-15",
+                "ended_at": "2025-06-15",
+                "action_key": "test-award-key",
+            },
+        )
+
+        self.assertRedirects(response, reverse("main:show_experience"))
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Updated Teaching Assistant")
+        self.assertEqual(self.experience.category, "full-time")
+        self.assertEqual(self.experience.keyfeatures, ["Held office hours"])
+        self.assertEqual(self.experience.start_at, date(2025, 1, 15))
+        self.assertEqual(self.experience.ended_at, date(2025, 6, 15))
+
+    def test_delete_experience_requires_valid_action_key(self):
+        response = self.client.post(
+            reverse("main:delete_experience", args=[self.experience.id]),
+            data={"action_key": "wrong-key"},
+            follow=True,
+        )
+
+        self.assertContains(response, "Invalid action key.")
+        self.assertTrue(Experience.objects.filter(pk=self.experience.id).exists())
+
+    def test_delete_experience_removes_experience(self):
+        response = self.client.post(
+            reverse("main:delete_experience", args=[self.experience.id]),
+            data={"action_key": "test-award-key"},
+            follow=True,
+        )
+
+        self.assertContains(response, "Experience deleted successfully.")
+        self.assertFalse(Experience.objects.filter(pk=self.experience.id).exists())
+
+    def test_delete_experience_rejects_get_requests(self):
+        response = self.client.get(
+            reverse("main:delete_experience", args=[self.experience.id])
+        )
+
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(Experience.objects.filter(pk=self.experience.id).exists())
+
+    def test_experience_page_filters_by_title_and_links_to_create_and_update_forms(self):
+        other_experience = Experience.objects.create(
+            title="Research Assistant",
+            description="Investigated software quality.",
+        )
+
+        response = self.client.get(reverse("main:show_experience"), {"title": "teaching"})
+
+        self.assertContains(response, self.experience.title)
+        self.assertNotContains(response, other_experience.title)
+        self.assertContains(response, 'name="title"')
+        self.assertContains(response, 'value="teaching"')
+        self.assertContains(
+            response,
+            f'href="{reverse("main:create_experience")}"',
+        )
+        self.assertContains(response, "Add Experience")
+        self.assertContains(
+            response,
+            f'href="{reverse("main:update_experience", args=[self.experience.id])}"',
+        )
+
     def test_experience_start_at_is_not_set_automatically(self):
         experience = Experience.objects.create(title="Experience Without Start Date")
 
