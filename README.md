@@ -12,12 +12,12 @@ NPM: 2506591053
 
 Class: PBP E
 
-Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama menampilkan profile dan selected projects, sedangkan data experience dan award sudah disimpan di database dan dirender melalui halaman terpisah:
+Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama menampilkan profile dan selected projects, sedangkan data experience dan award disimpan di database dan dikelola melalui halaman terpisah:
 
 - **Profile (`/`)** — nama, bio, program studi, NPM, foto profil, dan tautan sosial media.
 - **Projects (`/#projects`)** — project yang ditampilkan sebagai card berisi deskripsi, tags teknologi, serta tautan GitHub atau npm.
-- **Experience (`/experience/`)** — data pengalaman dari model `Experience`, termasuk kategori, periode, thumbnail, deskripsi, dan key features.
-- **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer.
+- **Experience (`/experience/`)** — timeline pengalaman dari model `Experience`, termasuk kategori, periode, deskripsi, dan key features. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan experience, serta pembaruan atau penghapusan melalui klik pada kartu experience.
+- **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan, dan penghapusan award.
 - **Awards API (`/api/awards/`)** — data award dalam format JSON dan filter judul melalui query `?title=`.
 
 ### Tech Stack
@@ -34,10 +34,24 @@ Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama m
 
 Data portfolio yang bersifat dinamis berada di aplikasi `main`:
 
-- `Experience` menyimpan `title`, `description`, `category`, `thumbnail`, `keyfeatures`, `start_at`, `ended_at`, `created_at`, dan `updated_at`. Timestamp dibuat otomatis saat record baru dibuat, tetapi keduanya dapat bernilai `NULL`.
+- `Experience` menyimpan `title`, `description`, `category`, `keyfeatures`, `start_at`, `ended_at`, `created_at`, dan `updated_at`. Kategori tersedia sebagai `internship`, `research`, `volunteer`, `part-time`, `full-time`, dan `freelance`. Timestamp dibuat otomatis saat record baru dibuat, tetapi keduanya dapat bernilai `NULL`.
 - `Award` menyimpan `title`, `description`, `thumbnail`, `issuer`, dan `date_received`.
 - Migrasi database berada di `main/migrations/`.
 - Data awal dapat dibuat atau diperbarui secara idempotent menggunakan script di folder `scripts/`.
+
+### Manajemen Experience dan Award
+
+Semua operasi perubahan data memerlukan `AWARD_ACTION_KEY` yang valid. Nama environment variable tersebut juga digunakan untuk experience agar satu action key dapat melindungi seluruh operasi tulis.
+
+| Fitur | URL | Keterangan |
+| --- | --- | --- |
+| Daftar experience | `/experience/` | Timeline experience dan pencarian judul dengan `?title=`. |
+| Tambah experience | `/experience/add/` | Form untuk membuat experience baru. |
+| Ubah experience | `/experience/<uuid>/` | Dibuka dengan klik kartu experience; form sudah terisi data saat ini. |
+| Hapus experience | `/experience/<uuid>/delete/` | Hanya menerima `POST`; dipicu dari modal konfirmasi pada form update. |
+| Daftar award | `/award/` | Daftar award dan pencarian judul dengan `?title=`. |
+| Tambah award | `/award/add/` | Form untuk membuat award baru. |
+| Hapus award | `/award/<uuid>/delete/` | Hanya menerima `POST` dan memerlukan action key. |
 
 Jalankan seed data setelah migrasi:
 
@@ -74,7 +88,10 @@ Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh kon
 ├── templates/
 │   ├── index.html                # Profile dan selected projects
 │   ├── experience.html            # Halaman experience dari database
-│   └── award.html                 # Halaman award dari database
+│   ├── experience_create_form.html # Form penambahan experience
+│   ├── experience_update_form.html # Form update dan modal hapus experience
+│   ├── award.html                 # Halaman award dari database
+│   └── award_form.html             # Form penambahan award
 ├── static/
 │   ├── css/style.css              # Styling, layout, responsive, dan hover effect
 │   └── img/                       # Foto profil, ikon project, dan thumbnail award
@@ -128,6 +145,7 @@ Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh kon
 
    - `http://127.0.0.1:8000/` untuk profile dan projects
    - `http://127.0.0.1:8000/experience/` untuk experience
+   - `http://127.0.0.1:8000/experience/add/` untuk menambah experience
    - `http://127.0.0.1:8000/award/` untuk awards
 
 ### Menjalankan Test
@@ -136,9 +154,9 @@ Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh kon
 python manage.py test
 ```
 
-### Award Action Key
+### Action Key untuk Perubahan Data
 
-Penambahan dan penghapusan award memerlukan action key dari environment variable. Buat atau sesuaikan file `.env` secara lokal:
+Penambahan, pembaruan, dan penghapusan experience serta penambahan dan penghapusan award memerlukan action key dari environment variable. Buat atau sesuaikan file `.env` secara lokal:
 
 ```env
 AWARD_ACTION_KEY=ganti-dengan-kunci-rahasia
@@ -158,6 +176,7 @@ DB_PASSWORD=...
 DB_HOST=...
 DB_PORT=...
 SCHEMA=public
+AWARD_ACTION_KEY=replace-with-a-private-award-action-key
 ```
 
 Untuk menyiapkan static files pada deployment, jalankan:
