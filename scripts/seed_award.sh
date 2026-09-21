@@ -43,15 +43,10 @@ award_records = [
 ]
 
 for record in award_records:
-    date_received = record.pop("date_received")
     award, created = Award.objects.update_or_create(
         title=record["title"],
         defaults=record,
     )
-
-    # date_received uses auto_now_add in the current model, so update the
-    # historical award date directly after saving the record.
-    Award.objects.filter(pk=award.pk).update(date_received=date_received)
 
     action = "Created" if created else "Updated"
     print(f"{action}: {award.title}")

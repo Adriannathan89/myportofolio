@@ -12,12 +12,12 @@ NPM: 2506591053
 
 Class: PBP E
 
-Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama menampilkan profile dan selected projects, sedangkan data experience dan award sudah disimpan di database dan dirender melalui halaman terpisah:
+Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama menampilkan profile dan selected projects, sedangkan data experience dan award disimpan di database dan dikelola melalui halaman terpisah:
 
 - **Profile (`/`)** — nama, bio, program studi, NPM, foto profil, dan tautan sosial media.
 - **Projects (`/#projects`)** — project yang ditampilkan sebagai card berisi deskripsi, tags teknologi, serta tautan GitHub atau npm.
-- **Experience (`/experience/`)** — data pengalaman dari model `Experience`, termasuk kategori, periode, thumbnail, deskripsi, dan key features.
-- **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer.
+- **Experience (`/experience/`)** — timeline pengalaman dari model `Experience`, termasuk kategori, periode, deskripsi, dan key features. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan experience, serta pembaruan atau penghapusan melalui klik pada kartu experience.
+- **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan, dan penghapusan award.
 - **Awards API (`/api/awards/`)** — data award dalam format JSON dan filter judul melalui query `?title=`.
 
 ### Tech Stack
@@ -34,10 +34,24 @@ Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama m
 
 Data portfolio yang bersifat dinamis berada di aplikasi `main`:
 
-- `Experience` menyimpan `title`, `description`, `category`, `thumbnail`, `keyfeatures`, `start_at`, dan `ended_at`.
+- `Experience` menyimpan `title`, `description`, `category`, `keyfeatures`, `start_at`, `ended_at`, `created_at`, dan `updated_at`. Kategori tersedia sebagai `internship`, `research`, `volunteer`, `part-time`, `full-time`, dan `freelance`. Timestamp dibuat otomatis saat record baru dibuat, tetapi keduanya dapat bernilai `NULL`.
 - `Award` menyimpan `title`, `description`, `thumbnail`, `issuer`, dan `date_received`.
 - Migrasi database berada di `main/migrations/`.
 - Data awal dapat dibuat atau diperbarui secara idempotent menggunakan script di folder `scripts/`.
+
+### Manajemen Experience dan Award
+
+Semua operasi perubahan data memerlukan `AWARD_ACTION_KEY` yang valid. Nama environment variable tersebut juga digunakan untuk experience agar satu action key dapat melindungi seluruh operasi tulis.
+
+| Fitur | URL | Keterangan |
+| --- | --- | --- |
+| Daftar experience | `/experience/` | Timeline experience dan pencarian judul dengan `?title=`. |
+| Tambah experience | `/experience/add/` | Form untuk membuat experience baru. |
+| Ubah experience | `/experience/<uuid>/` | Dibuka dengan klik kartu experience; form sudah terisi data saat ini. |
+| Hapus experience | `/experience/<uuid>/delete/` | Hanya menerima `POST`; dipicu dari modal konfirmasi pada form update. |
+| Daftar award | `/award/` | Daftar award dan pencarian judul dengan `?title=`. |
+| Tambah award | `/award/add/` | Form untuk membuat award baru. |
+| Hapus award | `/award/<uuid>/delete/` | Hanya menerima `POST` dan memerlukan action key. |
 
 Jalankan seed data setelah migrasi:
 
@@ -47,6 +61,14 @@ Jalankan seed data setelah migrasi:
 ```
 
 Kedua script menggunakan interpreter `python` secara default. Interpreter dapat diganti melalui environment variable `PYTHON_BIN`, contohnya `PYTHON_BIN=python3 ./scripts/seed_award.sh`.
+
+Untuk menghapus seluruh isi database aktif tanpa menghapus struktur tabel atau migrasi, jalankan:
+
+```bash
+./scripts/flush_db.sh
+```
+
+Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh konfigurasi environment saat ini. Pastikan tidak menjalankannya pada database production kecuali memang ingin mengosongkan seluruh datanya.
 
 ### Struktur Project
 
@@ -66,13 +88,17 @@ Kedua script menggunakan interpreter `python` secara default. Interpreter dapat 
 ├── templates/
 │   ├── index.html                # Profile dan selected projects
 │   ├── experience.html            # Halaman experience dari database
-│   └── award.html                 # Halaman award dari database
+│   ├── experience_create_form.html # Form penambahan experience
+│   ├── experience_update_form.html # Form update dan modal hapus experience
+│   ├── award.html                 # Halaman award dari database
+│   └── award_form.html             # Form penambahan award
 ├── static/
 │   ├── css/style.css              # Styling, layout, responsive, dan hover effect
 │   └── img/                       # Foto profil, ikon project, dan thumbnail award
 ├── scripts/
 │   ├── seed_experience.sh         # Seed/update data experience
 │   └── seed_award.sh              # Seed/update data award
+│   └── flush_db.sh                 # Hapus seluruh data database aktif
 ├── .github/workflows/             # Konfigurasi CI dan CD GitHub Actions
 ├── manage.py
 ├── requirements.txt
@@ -119,6 +145,7 @@ Kedua script menggunakan interpreter `python` secara default. Interpreter dapat 
 
    - `http://127.0.0.1:8000/` untuk profile dan projects
    - `http://127.0.0.1:8000/experience/` untuk experience
+   - `http://127.0.0.1:8000/experience/add/` untuk menambah experience
    - `http://127.0.0.1:8000/award/` untuk awards
 
 ### Menjalankan Test
@@ -127,9 +154,9 @@ Kedua script menggunakan interpreter `python` secara default. Interpreter dapat 
 python manage.py test
 ```
 
-### Award Action Key
+### Action Key untuk Perubahan Data
 
-Penambahan dan penghapusan award memerlukan action key dari environment variable. Buat atau sesuaikan file `.env` secara lokal:
+Penambahan, pembaruan, dan penghapusan experience serta penambahan dan penghapusan award memerlukan action key dari environment variable. Buat atau sesuaikan file `.env` secara lokal:
 
 ```env
 AWARD_ACTION_KEY=ganti-dengan-kunci-rahasia
@@ -149,6 +176,7 @@ DB_PASSWORD=...
 DB_HOST=...
 DB_PORT=...
 SCHEMA=public
+AWARD_ACTION_KEY=replace-with-a-private-award-action-key
 ```
 
 Untuk menyiapkan static files pada deployment, jalankan:
@@ -205,6 +233,27 @@ Berdasarkan limitasi tersebut, fungsi dinamis yang paling ingin ditambahkan di i
 
 3. `makemigrations` merupakan script untuk membuat file migrasi yang nantinya file ini berada di `migrations/` file ini merupakan generated django yang aslinya merupakan script untuk membuat table sql, namun alih-alih membuat file migrasi sql manual django memudahkan kita dengan membuatkan file yang bisa kita running dengan menggunakan script `migrate` untuk memasukan perubahan terhadap table kedalam database kita. misalnya saat kita membuat model baru `roles` dengan fieldsnya, saat kita jalankan `makemigrations` django membuatkan file migrasi terhadap model `roles` tersebut. di database, tabel `roles` tersebut belum ada sampai kita menjalankan script `migrate`.  
 
+### Asssignment 3
+1. Kita menggunakan Django ModelForm karena ada beberapa keuntungan yang bisa kita peroleh dibandingkan dengan membuat form manual dari html diantaranya:
+   - Kita tidak perlu menuliskan input pada form satu satu, dengan menggunakan django form kita memanggilnya dengan lebih mudah pada template htmlnya sesuai dengan model yang kita definisikan formnya
+   - Kita bisa langsung melakukan validasi input terhadap formnya tidak perlu manual validation jika kita menggunakan django form
+   - Jika kita manambahkan field baru pada modelnya kita tidak perlu "menyentuh" template htmlnya secara langsung
+Lalu kita perlu menggunakan `{% csrf_token %}` untuk mencegah serangan Cross-Site Request Foregery, yaitu ketika pihak ketiga mencoba mengirimkan request atas nama user lain tanpa user tersebut mengetahuinya. dengan menggunakan CRSF_TOKEN, django dapat memverifikasi bahwa request yang masuk benar benar berasal dari form yang di render oleh server itu sendiri bukan dari sumber external yang mencoba memalsukan requestnya
+
+2. JSON lebih populer dan lebih disukai pada pengembangan modern dibandingkan XML karena:
+   - Lebih ringkas, JSON tidak memerlukan closing tag seperti XML, sehingga ukuran bisa lebih data bisa lebih kecil dan transfer data bisa lebih cepat
+   - Lebih mudah dibaca manusia, structur JSON yang sederhana seperti pair key dan value lebih mudah dibaca manusia dibandingkan dengan XML yang berisi tag-tag yang sulit dibaca jika sudah menumpuk
+   - Parsing lebih cepat dan ringan, karena kesederhanaan dan keringkasannya, memparser JSON akan jauh lebih mudah dibandingkan dengan XML
+   - JSON merupakan representasi object javascript sehingga parsernya pada browser tidak memerlukan library tambahan.
+
+3. Alur ketika view function menggembalikan data portfolio dalam bentuk JSON:
+   1. Request masuk -> request user/browser masuk ketika mekases url terntu yang sudah dipetakan ke view function di urls.py
+   2. Query ke Database -> view function melakukan query ke database via django ORM, dan mengambalikan `QuerySet`
+   3. Serialisasi -> data dari `QuerySet` yang berbentuk Django model di serialisasi ke format json
+   4. Return Respon -> hasil serialisasi yang berbentuk `JSON` dikembalikan melalui `HTTPResponse` dan client bisa menerima response murni berbentuk `JSON`
+   5. Deserialisasi Client Side -> JavaScript pada browser melakukan `fetch()`ke endpoint yang sudah dipetakan tadi, menerima response JSON dan men-deserialise string json tadi kedalam bentuk object javascript navite sehingga hasilnya dapat ditampilkan secara dinamis di halaman web.
+Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QuerySet` atau Django model yang berbahasa python, sedangkan browser yang menggunakan bahasa javascript tidak dapat memahami apa itu Django model sehingga hasil dari `QuerySet` tadi di serialisasi ke dalam bentuk `JSON` dan dikirimkan bentuk stringnya sehingga nantinya browser tinggal tinggal parse string tersebut kedalam bentuk java script object navite dan dapat diproses.
+
 ### AI Disclosure
 
 ## Assignment 1
@@ -222,3 +271,14 @@ Berdasarkan limitasi tersebut, fungsi dinamis yang paling ingin ditambahkan di i
 * Serta saya menggunakan AI untuk memperbaharui dokumentasi dari readme yang menjelaskan project structure dari project ini.
 
 * model AI yang digunakan GPT-5.6-Luna (Xhigh)
+
+## Assignment 3
+* pada assignment 3 saya membuatkan abstraction model dan juga templatenya terlebih dahulu yaitu pada section award secara manual dan juga membuatkan Django model untuk experience. lalu saya menggunakan AI untuk melakukan perubahan yang dibatasi terhadap experience saja dengan memberikan abstraksi model dan juga memberikan context bagaimana perubahan harus dilakukan dan juga memberikan referensi designnya berdasarkan section award yang sudah saya buat sebelumnya.
+
+* dengan approach baru ini, AI yang sebelumnya cukup buruk dalam melakukan perubahan terhadap design menjadi sesuai ekspektasi, saya tidak memerlukan prompt yang berkaitan dengan fixing tidak seperti pada approach sebelumnya yang mana yang lansung memerintahkannya untuk melakukan perubahan design.
+
+* Saya juga menggunakan AI untuk memperbaharui dokumentasi dari readme yang menjelaskan project structure dari project ini
+
+* Model AI yang digunakan GPT-5.6-Terra (Medium)
+
+* Prompt history tersedia di AI_DISCLOSURE#3.md
