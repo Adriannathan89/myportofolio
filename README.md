@@ -48,6 +48,14 @@ Jalankan seed data setelah migrasi:
 
 Kedua script menggunakan interpreter `python` secara default. Interpreter dapat diganti melalui environment variable `PYTHON_BIN`, contohnya `PYTHON_BIN=python3 ./scripts/seed_award.sh`.
 
+Untuk menghapus seluruh isi database aktif tanpa menghapus struktur tabel atau migrasi, jalankan:
+
+```bash
+./scripts/flush_db.sh
+```
+
+Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh konfigurasi environment saat ini. Pastikan tidak menjalankannya pada database production kecuali memang ingin mengosongkan seluruh datanya.
+
 ### Struktur Project
 
 ```
@@ -73,6 +81,7 @@ Kedua script menggunakan interpreter `python` secara default. Interpreter dapat 
 ├── scripts/
 │   ├── seed_experience.sh         # Seed/update data experience
 │   └── seed_award.sh              # Seed/update data award
+│   └── flush_db.sh                 # Hapus seluruh data database aktif
 ├── .github/workflows/             # Konfigurasi CI dan CD GitHub Actions
 ├── manage.py
 ├── requirements.txt
