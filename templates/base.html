@@ -22,7 +22,7 @@
                 <a href="{% url 'main:show_experience' %}">Experience</a>
                 <a href="{% url 'main:show_award' %}">Award</a>
                 {% if user.is_authenticated %}
-                    <span class="nav-user">{{ user.username }}</span>
+                    <a href="{% url 'main:show_user_profile' %}">{{ user.username }}</a>
                     <a href="{% url 'main:logout' %}">Logout</a>
                 {% else %}
                     <a href="{% url 'main:login' %}">Login</a>

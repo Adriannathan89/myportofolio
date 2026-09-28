@@ -1,7 +1,7 @@
 import datetime
 
 from django.contrib import messages
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import PermissionDenied
@@ -10,10 +10,11 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from main.forms import AwardForm, ExperienceForm
+from main.forms import AwardForm, ExperienceForm, UserUpdateForm
 from main.models import Award, Experience
 
 
+#------------------------------- User Authentication Views ----------------------------------
 def register(request):
     form = UserCreationForm(request.POST or None)
 
@@ -52,6 +53,24 @@ def logout_view(request):
     response = redirect("main:show_main")
     response.delete_cookie("last_login")
     return response
+
+@login_required(login_url="main:login")
+def show_user_profile(request):
+    form = UserUpdateForm(request.POST if request.method == "POST" else None, instance=request.user)
+    if request.method == "POST" and form.is_valid():
+        user = form.save()
+        if form.cleaned_data["new_password"]:
+            update_session_auth_hash(request, user)
+        messages.success(request, "Profile updated successfully.")
+        return redirect("main:show_user_profile")
+
+    context = {
+        "name": "Adrian Nathanael Setiawan",
+        "user": request.user,
+        "form": form,
+    }
+
+    return render(request, "user_profile.html", context)
 
 
 def show_main(request):

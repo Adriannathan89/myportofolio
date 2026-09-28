@@ -10,6 +10,7 @@ from main.views import (
     show_award,
     show_experience,
     show_main,
+    show_user_profile,
     update_experience,
     update_award,
     logout_view,
@@ -32,6 +33,7 @@ urlpatterns = [
     path("award/<uuid:award_id>/toggle-star/", toggle_star_award, name="toggle_star_award"),
     path("api/awards/", get_awards_json, name="get_awards_json"),
     path("register/", register, name="register"),
+    path("profile/", show_user_profile, name="show_user_profile"),
     path("login/", show_login, name="login"),
     path("logout/", logout_view, name="logout"),
 ]
