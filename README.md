@@ -15,9 +15,10 @@ Class: PBP E
 Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama menampilkan profile dan selected projects, sedangkan data experience dan award disimpan di database dan dikelola melalui halaman terpisah:
 
 - **Profile (`/`)** — nama, bio, program studi, NPM, foto profil, dan tautan sosial media.
+- **User Profile (`/profile/`)** — halaman akun pribadi untuk mengganti username dan, bila perlu, password.
 - **Projects (`/#projects`)** — project yang ditampilkan sebagai card berisi deskripsi, tags teknologi, serta tautan GitHub atau npm.
 - **Experience (`/experience/`)** — timeline pengalaman dari model `Experience`, termasuk kategori, periode, deskripsi, dan key features. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan experience, serta pembaruan atau penghapusan melalui klik pada kartu experience.
-- **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan, dan penghapusan award.
+- **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan, pengubahan melalui klik pada kartu, dan penghapusan award.
 - **Awards API (`/api/awards/`)** — data award dalam format JSON dan filter judul melalui query `?title=`.
 
 ### Tech Stack
@@ -41,17 +42,26 @@ Data portfolio yang bersifat dinamis berada di aplikasi `main`:
 
 ### Manajemen Experience dan Award
 
-Operasi perubahan data hanya tersedia untuk superuser yang sudah login.
+Superuser dapat menambah, mengubah, dan menghapus data. Akun dalam group `Editor` hanya dapat mengubah award dan experience yang sudah ada; tidak dapat menambah atau menghapusnya. Group `Editor` beserta izinnya dibuat oleh migrasi database. Akun yang baru mendaftar tetap menjadi akun biasa sampai ditambahkan ke group tersebut.
 
 | Fitur | URL | Keterangan |
 | --- | --- | --- |
 | Daftar experience | `/experience/` | Timeline experience dan pencarian judul dengan `?title=`. |
-| Tambah experience | `/experience/add/` | Hanya untuk superuser yang sudah login. |
-| Ubah experience | `/experience/<uuid>/` | Hanya untuk superuser yang sudah login; form terisi data saat ini. |
-| Hapus experience | `/experience/<uuid>/delete/` | Hanya untuk superuser yang sudah login; menerima `POST` dari modal konfirmasi. |
+| Tambah experience | `/experience/add/` | Memerlukan izin `main.add_experience`. |
+| Ubah experience | `/experience/<uuid>/` | Memerlukan izin `main.change_experience`; form terisi data saat ini. |
+| Hapus experience | `/experience/<uuid>/delete/` | Memerlukan izin `main.delete_experience`; menerima `POST` dari modal konfirmasi. |
 | Daftar award | `/award/` | Daftar award, pencarian judul dengan `?title=`, dan jumlah star; akun login dapat memberi atau membatalkan star. |
-| Tambah award | `/award/add/` | Hanya untuk superuser yang sudah login. |
-| Hapus award | `/award/<uuid>/delete/` | Hanya untuk superuser yang sudah login; menerima `POST` dari modal konfirmasi. |
+| Tambah award | `/award/add/` | Memerlukan izin `main.add_award`. |
+| Ubah award | `/award/<uuid>/` | Memerlukan izin `main.change_award`; klik kartu award untuk membuka form yang sudah terisi. |
+| Hapus award | `/award/<uuid>/delete/` | Memerlukan izin `main.delete_award`; menerima `POST` dari modal konfirmasi. |
+
+Pada halaman Awards, Editor dan superuser dapat mengklik **area mana pun pada kartu award** untuk membuka form edit yang sudah terisi. Judul kartu tetap berupa teks hitam. Setelah mengubah data, pilih **Save** untuk menyimpan atau **Cancel** untuk kembali ke daftar. Tombol **Star/Unstar** tetap menjalankan interaksinya sendiri; tombol **Delete** hanya terlihat oleh superuser dan tidak membuka form edit. Pengunjung dan akun biasa dapat melihat kartu, tetapi tidak mendapat tautan edit.
+
+Untuk memberikan role Editor, jalankan `python manage.py migrate`, lalu masuk ke `/admin/` memakai akun superuser. Buka **Authentication and Authorization → Users**, pilih akun yang sudah ada, dan tambahkan group **Editor** pada bagian **Groups**. Editor mengelola konten melalui halaman portfolio, bukan melalui Django admin; tidak perlu mengaktifkan `Staff status` atau `Superuser status` pada akunnya.
+
+### Mengubah profil akun
+
+Setelah login, klik **username** pada navbar atau buka `/profile/`. Form menampilkan username saat ini. Masukkan **current password** untuk menyimpan perubahan username. Jika ingin mengganti password, isi **new password** dan **confirm new password**; biarkan keduanya kosong untuk mempertahankan password lama. Password saat ini harus benar, kedua isian password baru harus cocok, dan password baru mengikuti validasi Django. Setelah berhasil disimpan, pengguna tetap login. Jika ada kesalahan, form menampilkan pesan pada field terkait dan perubahan tidak disimpan.
 
 Jalankan seed data setelah migrasi:
 
@@ -148,6 +158,7 @@ Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh kon
    - `http://127.0.0.1:8000/experience/` untuk experience
    - `http://127.0.0.1:8000/experience/add/` untuk menambah experience
    - `http://127.0.0.1:8000/award/` untuk awards
+   - `http://127.0.0.1:8000/profile/` untuk mengubah profil akun setelah login
 
 ### Menjalankan Test
 
@@ -293,3 +304,12 @@ Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QueryS
 * Model AI yang digunakan GPT-5.6-Terra (Medium)
 
 * Prompt history tersedia di AI_DISCLOSURE#3.md
+
+## Assignment 4
+* pada assignment 4 saya menggunakan ai untuk membuatkan saya migration untuk group user editor dengan permission untuk melakukan update terhadap section award dan juga experience. seperti sebelumnya saya menggunakan flow tdd untuk memastikan applikasi saya dapat berjalan dengan benar. 
+
+* pada kali, penggunaan ai saya mengalami halusinasi dimana saat saya memintanya untuk melakukan perubahan untuk menambahkan interkasi terhadap section award dimana saat user yang memiliki akses untuk mengedit award saat menyentuh cardnya akan redirect ke award edit, ai malah melakukan perubahan jika user mengklik judul baru dapat masuk ke mode edit sehingga saya melakukan perbaikan manual pada kasus ini
+
+* pada kasus ini saya belajar bahwa tdd saja belum cukup untuk memastikan applikasi saya berjalan sesuai dengan yang diinginkan, perlu dilakuakn e2e testing untuk memastikan bahwa semuanya berjalan sesuai dengan spek yang sudah disepakati.
+
+* Model AI yang digunakan GPT-6.0-sol (Medium)

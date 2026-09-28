@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 
@@ -133,3 +134,129 @@ class AuthenticationAuthorizationTest(TestCase):
 
         self.assertEqual(response.status_code, 405)
         self.assertFalse(award.starred_by.exists())
+
+    def test_editor_can_only_update_awards_and_experiences(self):
+        self.user.groups.add(Group.objects.get(name="Editor"))
+        self.client.force_login(self.user)
+        award = Award.objects.create(title="Original award", date_received="2026-09-16")
+        experience = Experience.objects.create(title="Original experience")
+
+        self.assertEqual(self.client.get(reverse("main:create_award")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("main:create_experience")).status_code, 403)
+        self.assertEqual(
+            self.client.post(reverse("main:delete_award", args=[award.pk])).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.post(reverse("main:delete_experience", args=[experience.pk])).status_code,
+            403,
+        )
+
+        award_form = self.client.get(reverse("main:update_award", args=[award.pk]))
+        self.assertEqual(award_form.status_code, 200)
+        self.assertContains(award_form, 'value="Original award"')
+        award_response = self.client.post(
+            reverse("main:update_award", args=[award.pk]),
+            {"title": "Updated award", "date_received": "2026-09-16"},
+        )
+        self.assertRedirects(award_response, reverse("main:show_award"))
+        award.refresh_from_db()
+        self.assertEqual(award.title, "Updated award")
+
+        update_response = self.client.post(
+            reverse("main:update_experience", args=[experience.pk]),
+            {"title": "Updated by editor", "category": "freelance"},
+        )
+        self.assertRedirects(update_response, reverse("main:show_experience"))
+        experience.refresh_from_db()
+        self.assertEqual(experience.title, "Updated by editor")
+
+        self.assertTrue(Award.objects.filter(pk=award.pk).exists())
+        self.assertTrue(Experience.objects.filter(pk=experience.pk).exists())
+
+    def test_editor_sees_only_update_controls(self):
+        self.user.groups.add(Group.objects.get(name="Editor"))
+        self.client.force_login(self.user)
+        award = Award.objects.create(title="Visible award", date_received="2026-09-16")
+        experience = Experience.objects.create(title="Visible experience")
+
+        award_page = self.client.get(reverse("main:show_award"))
+        experience_page = self.client.get(reverse("main:show_experience"))
+
+        self.assertContains(award_page, reverse("main:update_award", args=[award.pk]))
+        self.assertNotContains(award_page, reverse("main:create_award"))
+        self.assertNotContains(award_page, f"delete-award-{award.pk}")
+        self.assertNotContains(experience_page, reverse("main:create_experience"))
+        self.assertContains(experience_page, "experience-card-link")
+        update_page = self.client.get(reverse("main:update_experience", args=[experience.pk]))
+        self.assertNotContains(update_page, f"delete-experience-{experience.pk}")
+
+    def test_regular_user_cannot_update_award(self):
+        self.client.force_login(self.user)
+        award = Award.objects.create(title="Protected award", date_received="2026-09-16")
+
+        response = self.client.post(
+            reverse("main:update_award", args=[award.pk]),
+            {"title": "Changed", "date_received": "2026-09-16"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        award.refresh_from_db()
+        self.assertEqual(award.title, "Protected award")
+
+
+class UserProfileTest(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="profile_user", password="Current-password-123!"
+        )
+        self.url = reverse("main:show_user_profile")
+
+    def test_profile_requires_login(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(
+            response,
+            f'{reverse("main:login")}?next={self.url}',
+        )
+
+    def test_profile_renders_existing_user_in_safe_form(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(self.url)
+
+        self.assertTemplateUsed(response, "user_profile.html")
+        self.assertContains(response, 'name="username"')
+        self.assertContains(response, 'value="profile_user"')
+        self.assertContains(response, 'name="current_password"')
+        self.assertContains(response, 'name="new_password"')
+        self.assertContains(response, 'name="confirm_new_password"')
+        self.assertNotContains(response, self.user.password)
+
+    def test_profile_rejects_wrong_current_password(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {
+            "username": "changed_user",
+            "current_password": "wrong-password",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Current password is incorrect")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "profile_user")
+
+    def test_profile_updates_username_and_password_without_logging_out(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {
+            "username": "changed_user",
+            "current_password": "Current-password-123!",
+            "new_password": "New-strong-password-456!",
+            "confirm_new_password": "New-strong-password-456!",
+        })
+
+        self.assertRedirects(response, self.url)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "changed_user")
+        self.assertTrue(self.user.check_password("New-strong-password-456!"))
+        self.assertContains(self.client.get(self.url), 'value="changed_user"')

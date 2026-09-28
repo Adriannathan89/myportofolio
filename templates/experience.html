@@ -5,7 +5,7 @@
         <div class="container">
             <div class="award-heading">
                 <h1 class="menu-title">Experience</h1>
-                {% if user.is_authenticated and user.is_superuser %}
+                {% if perms.main.add_experience %}
                 <a href="{% url 'main:create_experience' %}" class="add-award-button">Add Experience</a>
                 {% endif %}
             </div>
@@ -29,7 +29,7 @@
                 {% for experience in experience_list %}
                 <div
                     class="experience-timeline-item {% if forloop.counter|divisibleby:2 %}experience-timeline-item--right{% else %}experience-timeline-item--left{% endif %}">
-                    {% if user.is_authenticated and user.is_superuser %}
+                    {% if perms.main.change_experience %}
                     <a class="experience-card-link" href="{% url 'main:update_experience' experience.id %}">
                     {% endif %}
                     <article class="experience-card">
@@ -63,7 +63,7 @@
                         </p>
                         {% endif %}
                     </article>
-                    {% if user.is_authenticated and user.is_superuser %}
+                    {% if perms.main.change_experience %}
                     </a>
                     {% endif %}
                 </div>
