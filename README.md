@@ -15,6 +15,7 @@ Class: PBP E
 Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama menampilkan profile dan selected projects, sedangkan data experience dan award disimpan di database dan dikelola melalui halaman terpisah:
 
 - **Profile (`/`)** — nama, bio, program studi, NPM, foto profil, dan tautan sosial media.
+- **User Profile (`/profile/`)** — halaman akun pribadi untuk mengganti username dan, bila perlu, password.
 - **Projects (`/#projects`)** — project yang ditampilkan sebagai card berisi deskripsi, tags teknologi, serta tautan GitHub atau npm.
 - **Experience (`/experience/`)** — timeline pengalaman dari model `Experience`, termasuk kategori, periode, deskripsi, dan key features. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan experience, serta pembaruan atau penghapusan melalui klik pada kartu experience.
 - **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan, pengubahan melalui klik pada kartu, dan penghapusan award.
@@ -57,6 +58,10 @@ Superuser dapat menambah, mengubah, dan menghapus data. Akun dalam group `Editor
 Pada halaman Awards, Editor dan superuser dapat mengklik **area mana pun pada kartu award** untuk membuka form edit yang sudah terisi. Judul kartu tetap berupa teks hitam. Setelah mengubah data, pilih **Save** untuk menyimpan atau **Cancel** untuk kembali ke daftar. Tombol **Star/Unstar** tetap menjalankan interaksinya sendiri; tombol **Delete** hanya terlihat oleh superuser dan tidak membuka form edit. Pengunjung dan akun biasa dapat melihat kartu, tetapi tidak mendapat tautan edit.
 
 Untuk memberikan role Editor, jalankan `python manage.py migrate`, lalu masuk ke `/admin/` memakai akun superuser. Buka **Authentication and Authorization → Users**, pilih akun yang sudah ada, dan tambahkan group **Editor** pada bagian **Groups**. Editor mengelola konten melalui halaman portfolio, bukan melalui Django admin; tidak perlu mengaktifkan `Staff status` atau `Superuser status` pada akunnya.
+
+### Mengubah profil akun
+
+Setelah login, klik **username** pada navbar atau buka `/profile/`. Form menampilkan username saat ini. Masukkan **current password** untuk menyimpan perubahan username. Jika ingin mengganti password, isi **new password** dan **confirm new password**; biarkan keduanya kosong untuk mempertahankan password lama. Password saat ini harus benar, kedua isian password baru harus cocok, dan password baru mengikuti validasi Django. Setelah berhasil disimpan, pengguna tetap login. Jika ada kesalahan, form menampilkan pesan pada field terkait dan perubahan tidak disimpan.
 
 Jalankan seed data setelah migrasi:
 
@@ -153,6 +158,7 @@ Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh kon
    - `http://127.0.0.1:8000/experience/` untuk experience
    - `http://127.0.0.1:8000/experience/add/` untuk menambah experience
    - `http://127.0.0.1:8000/award/` untuk awards
+   - `http://127.0.0.1:8000/profile/` untuk mengubah profil akun setelah login
 
 ### Menjalankan Test
 
