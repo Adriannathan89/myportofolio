@@ -1,6 +1,7 @@
 import json
 
-from django.test import TestCase, override_settings
+from django.contrib.auth import get_user_model
+from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.core.exceptions import FieldDoesNotExist
@@ -11,9 +12,14 @@ from main.forms import ExperienceForm
 from main.models import Award, Experience
 
 
-@override_settings(AWARD_ACTION_KEY="test-award-key")
 class MainTest(TestCase):
     def setUp(self):
+        self.superuser = get_user_model().objects.create_superuser(
+            username="admin",
+            email="admin@example.com",
+            password="test-password",
+        )
+        self.client.force_login(self.superuser)
         self.experience = Experience.objects.create(
             title="PBP Teaching Assistant",
             description="Help students understand web development.",
@@ -93,7 +99,6 @@ class MainTest(TestCase):
                 "thumbnail": "https://example.com/award.png",
                 "issuer": "Tech Community",
                 "date_received": "2026-09-16",
-                "action_key": "test-award-key",
             },
             follow=True,
         )
@@ -141,43 +146,14 @@ class MainTest(TestCase):
         self.assertContains(response, 'name="title"')
         self.assertContains(response, 'value="logic"')
 
-    def test_award_page_renders_delete_popover_with_action_key_input(self):
+    def test_award_page_renders_delete_popover_without_action_key_input(self):
         award = Award.objects.create(title="Protected Award", date_received=date(2026, 9, 16))
 
         response = self.client.get(reverse("main:show_award"))
 
         self.assertContains(response, f'popovertarget="delete-award-{award.id}"')
         self.assertContains(response, 'role="dialog"')
-        self.assertContains(response, 'name="action_key"')
-
-    def test_award_form_rejects_an_incorrect_action_key(self):
-        response = self.client.post(
-            reverse("main:create_award"),
-            data={
-                "title": "Unauthorized Award",
-                "date_received": "2026-09-16",
-                "action_key": "wrong-key",
-            },
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Invalid action key.")
-        self.assertFalse(Award.objects.filter(title="Unauthorized Award").exists())
-
-    @override_settings(AWARD_ACTION_KEY="")
-    def test_award_form_rejects_submission_when_action_key_is_not_configured(self):
-        response = self.client.post(
-            reverse("main:create_award"),
-            data={
-                "title": "Unconfigured Award",
-                "date_received": "2026-09-16",
-                "action_key": "test-award-key",
-            },
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Invalid action key.")
-        self.assertFalse(Award.objects.filter(title="Unconfigured Award").exists())
+        self.assertNotContains(response, 'name="action_key"')
 
     def test_award_form_accepts_relative_thumbnail_path(self):
         response = self.client.post(
@@ -188,7 +164,6 @@ class MainTest(TestCase):
                 "thumbnail": "/static/img/local-certificate.jpeg",
                 "issuer": "Local Organization",
                 "date_received": "2026-09-16",
-                "action_key": "test-award-key",
             },
         )
 
@@ -230,43 +205,11 @@ class MainTest(TestCase):
 
         response = self.client.post(
             f"/award/{award.id}/delete/",
-            data={"action_key": "test-award-key"},
             follow=True,
         )
 
         self.assertContains(response, "Award deleted successfully.")
         self.assertFalse(Award.objects.filter(pk=award.id).exists())
-
-    def test_delete_award_keeps_award_when_action_key_is_incorrect(self):
-        award = Award.objects.create(
-            title="Protected Award",
-            date_received=date(2026, 9, 16),
-        )
-
-        response = self.client.post(
-            f"/award/{award.id}/delete/",
-            data={"action_key": "wrong-key"},
-            follow=True,
-        )
-
-        self.assertContains(response, "Invalid action key.")
-        self.assertTrue(Award.objects.filter(pk=award.id).exists())
-
-    @override_settings(AWARD_ACTION_KEY="")
-    def test_delete_award_keeps_award_when_action_key_is_not_configured(self):
-        award = Award.objects.create(
-            title="Unconfigured Award",
-            date_received=date(2026, 9, 16),
-        )
-
-        response = self.client.post(
-            f"/award/{award.id}/delete/",
-            data={"action_key": "test-award-key"},
-            follow=True,
-        )
-
-        self.assertContains(response, "Invalid action key.")
-        self.assertTrue(Award.objects.filter(pk=award.id).exists())
 
     def test_delete_award_rejects_get_requests(self):
         award = Award.objects.create(
@@ -319,14 +262,12 @@ class MainTest(TestCase):
         award_card_rules = stylesheet[card_start:card_end]
 
         self.assertIn("    position: relative;\n", award_card_rules)
-        self.assertIn(
-            ".award-actions {\n"
-            "    position: absolute;\n"
-            "    right: 16px;\n"
-            "    bottom: 16px;\n"
-            "}",
-            stylesheet,
-        )
+        actions_start = stylesheet.index(".award-actions {")
+        actions_end = stylesheet.index("}\n", actions_start)
+        award_actions_rules = stylesheet[actions_start:actions_end]
+        self.assertIn("    position: absolute;\n", award_actions_rules)
+        self.assertIn("    right: 16px;\n", award_actions_rules)
+        self.assertIn("    bottom: 16px;\n", award_actions_rules)
 
     def test_nonexistent_page_returns_404(self):
         response = self.client.get("/a-page-that-does-not-exist/")
@@ -366,7 +307,6 @@ class MainTest(TestCase):
             "keyfeatures",
             "start_at",
             "ended_at",
-            "action_key",
         ):
             self.assertContains(response, f'name="{field_name}"')
 
@@ -380,7 +320,6 @@ class MainTest(TestCase):
                 "keyfeatures": '["Built dashboards"]',
                 "start_at": "2025-01-15",
                 "ended_at": "2025-06-15",
-                "action_key": "test-award-key",
             },
         )
 
@@ -419,7 +358,6 @@ class MainTest(TestCase):
                 "keyfeatures": '["Held office hours"]',
                 "start_at": "2025-01-15",
                 "ended_at": "2025-06-15",
-                "action_key": "test-award-key",
             },
         )
 
@@ -431,20 +369,9 @@ class MainTest(TestCase):
         self.assertEqual(self.experience.start_at, date(2025, 1, 15))
         self.assertEqual(self.experience.ended_at, date(2025, 6, 15))
 
-    def test_delete_experience_requires_valid_action_key(self):
-        response = self.client.post(
-            reverse("main:delete_experience", args=[self.experience.id]),
-            data={"action_key": "wrong-key"},
-            follow=True,
-        )
-
-        self.assertContains(response, "Invalid action key.")
-        self.assertTrue(Experience.objects.filter(pk=self.experience.id).exists())
-
     def test_delete_experience_removes_experience(self):
         response = self.client.post(
             reverse("main:delete_experience", args=[self.experience.id]),
-            data={"action_key": "test-award-key"},
             follow=True,
         )
 

@@ -6,7 +6,9 @@
         <div class="container">
             <div class="award-heading">
                 <h1 class="menu-title">Awards</h1>
-                <a href="{% url 'main:create_award' %}" class="add-award-button">Add Award</a>
+                {% if user.is_authenticated and user.is_superuser %}
+                    <a href="{% url 'main:create_award' %}" class="add-award-button">Add Award</a>
+                {% endif %}
             </div>
 
             <form method="get" action="{% url 'main:show_award' %}" class="award-search">
@@ -34,6 +36,8 @@
                     <p class="award-description">{{ award.description }}</p>
                     <p class="award-issuer">Issued by: {{ award.issuer }}</p>
                     <div class="award-actions">
+                        {% include "include/award_star_control.html" with award=award %}
+                        {% if user.is_authenticated and user.is_superuser %}
                         <button
                             type="button"
                             class="delete-button"
@@ -42,51 +46,14 @@
                         >
                             Delete
                         </button>
+                        {% endif %}
                     </div>
-                    <div
-                        id="delete-award-{{ award.id }}"
-                        class="award-delete-modal"
-                        popover="auto"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="delete-award-title-{{ award.id }}"
-                    >
-                        <button
-                            type="button"
-                            class="award-delete-modal__close"
-                            popovertarget="delete-award-{{ award.id }}"
-                            popovertargetaction="hide"
-                            aria-label="Close delete confirmation"
-                        >
-                            &times;
-                        </button>
-                        <h2 id="delete-award-title-{{ award.id }}">Delete Award?</h2>
-                        <p>Are you sure you want to delete <strong>{{ award.title }}</strong>?</p>
-                        <form method="post" action="{% url 'main:delete_award' award.id %}" class="award-delete-form">
-                            {% csrf_token %}
-                            <label for="delete-action-key-{{ award.id }}">Action Key</label>
-                            <input
-                                type="password"
-                                name="action_key"
-                                id="delete-action-key-{{ award.id }}"
-                                class="form-control"
-                                placeholder="Enter action key"
-                                autocomplete="current-password"
-                                required
-                            >
-                            <div class="award-delete-modal__actions">
-                                <button
-                                    type="button"
-                                    class="cancel-button"
-                                    popovertarget="delete-award-{{ award.id }}"
-                                    popovertargetaction="hide"
-                                >
-                                    Cancel
-                                </button>
-                                <button type="submit" class="delete-confirm-button">Yes, Delete</button>
-                            </div>
-                        </form>
-                    </div>
+                    {% if user.is_authenticated %}
+                    {% include "include/award_star_confirmation_modal.html" with award=award %}
+                    {% endif %}
+                    {% if user.is_authenticated and user.is_superuser %}
+                    {% include "include/delete_confirmation_modal.html" with modal_id_prefix="delete-award" title_id_prefix="delete-award-title" modal_title="Delete Award?" object_title=award.title target_url_name="main:delete_award" target_id=award.id confirm_text="Yes, Delete" %}
+                    {% endif %}
                 </div>
                 {% empty %}
                 <p class="empty-state">No awards have been added yet.</p>

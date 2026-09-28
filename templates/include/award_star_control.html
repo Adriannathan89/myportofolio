@@ -1,0 +1,19 @@
+{% if user.is_authenticated %}
+<button
+    type="button"
+    class="button-star{% if user in award.starred_by.all %} is-starred{% endif %}"
+    popovertarget="star-award-{{ award.id }}"
+    title="{% if award.starred_by.all %}Starred by {{ award.starred_by.all|join:', ' }}{% else %}Be the first to star this award{% endif %}"
+    aria-label="{% if user in award.starred_by.all %}Unstar {{ award.title }}{% else %}Star {{ award.title }}{% endif %}"
+>
+    <span class="star-icon" aria-hidden="true">★</span>
+    {% if user in award.starred_by.all %}Unstar{% else %}Star{% endif %}
+    <span class="star-count">{{ award.starred_by.count }}</span>
+</button>
+{% else %}
+<a class="button-star button-star--login" href="{% url 'main:login' %}" title="Log in to star this award">
+    <span class="star-icon" aria-hidden="true">★</span>
+    Log in to star
+    <span class="star-count">{{ award.starred_by.count }}</span>
+</a>
+{% endif %}

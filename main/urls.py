@@ -6,10 +6,14 @@ from main.views import (
     delete_award,
     delete_experience,
     get_awards_json,
+    show_login,
     show_award,
     show_experience,
     show_main,
     update_experience,
+    logout_view,
+    register,
+    toggle_star_award,
 )
 
 app_name = "main"
@@ -23,5 +27,9 @@ urlpatterns = [
     path("award/", show_award, name="show_award"),
     path("award/add/", create_award, name="create_award"),
     path("award/<uuid:award_id>/delete/", delete_award, name="delete_award"),
+    path("award/<uuid:award_id>/toggle-star/", toggle_star_award, name="toggle_star_award"),
     path("api/awards/", get_awards_json, name="get_awards_json"),
+    path("register/", register, name="register"),
+    path("login/", show_login, name="login"),
+    path("logout/", logout_view, name="logout"),
 ]

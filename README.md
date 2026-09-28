@@ -41,17 +41,17 @@ Data portfolio yang bersifat dinamis berada di aplikasi `main`:
 
 ### Manajemen Experience dan Award
 
-Semua operasi perubahan data memerlukan `AWARD_ACTION_KEY` yang valid. Nama environment variable tersebut juga digunakan untuk experience agar satu action key dapat melindungi seluruh operasi tulis.
+Operasi perubahan data hanya tersedia untuk superuser yang sudah login.
 
 | Fitur | URL | Keterangan |
 | --- | --- | --- |
 | Daftar experience | `/experience/` | Timeline experience dan pencarian judul dengan `?title=`. |
-| Tambah experience | `/experience/add/` | Form untuk membuat experience baru. |
-| Ubah experience | `/experience/<uuid>/` | Dibuka dengan klik kartu experience; form sudah terisi data saat ini. |
-| Hapus experience | `/experience/<uuid>/delete/` | Hanya menerima `POST`; dipicu dari modal konfirmasi pada form update. |
-| Daftar award | `/award/` | Daftar award dan pencarian judul dengan `?title=`. |
-| Tambah award | `/award/add/` | Form untuk membuat award baru. |
-| Hapus award | `/award/<uuid>/delete/` | Hanya menerima `POST` dan memerlukan action key. |
+| Tambah experience | `/experience/add/` | Hanya untuk superuser yang sudah login. |
+| Ubah experience | `/experience/<uuid>/` | Hanya untuk superuser yang sudah login; form terisi data saat ini. |
+| Hapus experience | `/experience/<uuid>/delete/` | Hanya untuk superuser yang sudah login; menerima `POST` dari modal konfirmasi. |
+| Daftar award | `/award/` | Daftar award, pencarian judul dengan `?title=`, dan jumlah star; akun login dapat memberi atau membatalkan star. |
+| Tambah award | `/award/add/` | Hanya untuk superuser yang sudah login. |
+| Hapus award | `/award/<uuid>/delete/` | Hanya untuk superuser yang sudah login; menerima `POST` dari modal konfirmasi. |
 
 Jalankan seed data setelah migrasi:
 
@@ -96,6 +96,7 @@ Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh kon
 │   ├── css/style.css              # Styling, layout, responsive, dan hover effect
 │   └── img/                       # Foto profil, ikon project, dan thumbnail award
 ├── scripts/
+│   ├── e2e_selenium.py            # E2E browser test untuk authentication, permission, dan award star
 │   ├── seed_experience.sh         # Seed/update data experience
 │   └── seed_award.sh              # Seed/update data award
 │   └── flush_db.sh                 # Hapus seluruh data database aktif
@@ -154,15 +155,26 @@ Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh kon
 python manage.py test
 ```
 
-### Action Key untuk Perubahan Data
+### Menjalankan Selenium E2E
 
-Penambahan, pembaruan, dan penghapusan experience serta penambahan dan penghapusan award memerlukan action key dari environment variable. Buat atau sesuaikan file `.env` secara lokal:
+Selenium menguji CSRF dan login/logout, larangan create/delete Award dan create/update/delete Experience untuk akun biasa, akses form Award dan Experience oleh superuser, serta alur star/unstar Award.
 
-```env
-AWARD_ACTION_KEY=ganti-dengan-kunci-rahasia
-```
+1. Install dependency dari `requirements.txt` dan pastikan Google Chrome tersedia.
+2. Salin `.env.example` ke `.env`, lalu isi `E2E_USER_PASSWORD` dan `E2E_ADMIN_PASSWORD` dengan password lokal pilihan Anda. `E2E_BASE_URL` dapat diubah bila server berjalan di alamat lain.
+3. Jalankan migrasi dan server Django di terminal pertama:
 
-Key tersebut tidak disimpan ke database dan tidak boleh di-commit ke repository.
+   ```bash
+   python manage.py migrate
+   python manage.py runserver
+   ```
+
+4. Jalankan E2E di terminal kedua:
+
+   ```bash
+   python scripts/e2e_selenium.py --headless
+   ```
+
+Skrip membuat atau memperbarui akun lokal `burhan_test` dan `admin_test`, membuat data Award dan Experience sementara, lalu menghapus data sementara itu setelah pengujian. Tanpa `--headless`, Chrome dibuka dengan jendela biasa.
 
 ### Menjalankan dengan Konfigurasi Produksi (PostgreSQL)
 
@@ -176,7 +188,6 @@ DB_PASSWORD=...
 DB_HOST=...
 DB_PORT=...
 SCHEMA=public
-AWARD_ACTION_KEY=replace-with-a-private-award-action-key
 ```
 
 Untuk menyiapkan static files pada deployment, jalankan:

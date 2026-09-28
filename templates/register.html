@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block meta %}
+    <title>Register - {{ name }}</title>
+{% endblock meta %}
+{% block content %}
+    <main class="auth-page">
+        <section class="auth-section" aria-labelledby="register-title">
+            <div class="container auth-container">
+                <div class="auth-card">
+                    <div class="auth-card__mark" aria-hidden="true">✦</div>
+                    <p class="auth-card__eyebrow">Join the portfolio</p>
+                    <h1 id="register-title" class="auth-card__title">Create your account</h1>
+                    <p class="auth-card__intro">Create an account to star the awards you like.</p>
+
+                    <form method="post" action="{% url 'main:register' %}" class="auth-form">
+                        {% csrf_token %}
+                        {% for error in form.non_field_errors %}
+                            <p class="form-error">{{ error }}</p>
+                        {% endfor %}
+                        {% for field in form %}
+                            <div class="form-group auth-form__group">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <p class="form-error">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="auth-submit-button">Create account</button>
+                    </form>
+
+                    <p class="auth-account-prompt">
+                        Sudah punya akun? <a href="{% url 'main:login' %}">Login di sini</a>.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock content %}

@@ -1,0 +1,43 @@
+<div
+    id="star-award-{{ award.id }}"
+    class="award-star-modal"
+    popover="auto"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="star-award-title-{{ award.id }}"
+>
+    <button
+        type="button"
+        class="award-star-modal__close"
+        popovertarget="star-award-{{ award.id }}"
+        popovertargetaction="hide"
+        aria-label="Close star confirmation"
+    >
+        &times;
+    </button>
+    {% if user in award.starred_by.all %}
+    <h2 id="star-award-title-{{ award.id }}">Remove your star?</h2>
+    <p>Are you sure you want to remove your star from <strong>{{ award.title }}</strong>?</p>
+    {% else %}
+    <h2 id="star-award-title-{{ award.id }}">Star this award?</h2>
+    <p>Are you sure you want to give a star to <strong>{{ award.title }}</strong>?</p>
+    {% endif %}
+    <form method="post" action="{% url 'main:toggle_star_award' award.id %}" class="award-star-modal__form">
+        {% csrf_token %}
+        <div class="award-star-modal__actions">
+            <button
+                type="button"
+                class="cancel-button"
+                popovertarget="star-award-{{ award.id }}"
+                popovertargetaction="hide"
+            >
+                Cancel
+            </button>
+            {% if user in award.starred_by.all %}
+            <button type="submit" class="star-confirm-button">Unstar</button>
+            {% else %}
+            <button type="submit" class="star-confirm-button">Give Star</button>
+            {% endif %}
+        </div>
+    </form>
+</div>

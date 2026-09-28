@@ -1,17 +1,62 @@
-import secrets
+import datetime
 
-from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.core.exceptions import PermissionDenied
 from django.core import serializers
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from main.forms import AwardActionKeyForm, AwardForm, ExperienceForm
+from main.forms import AwardForm, ExperienceForm
 from main.models import Award, Experience
 
 
+def register(request):
+    form = UserCreationForm(request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Registration successful. You can now log in.")
+        return redirect("main:login")
+
+    context = {
+        "name": "Adrian Nathanael Setiawan",
+        "form": form,
+    }
+    return render(request, "register.html", context)
+
+def show_login(request):
+    form = AuthenticationForm(request, data=request.POST or None)
+
+    if request.method == "POST" and form.is_valid():
+        login(request, form.get_user())
+        messages.success(request, "Login successful.")
+        response = redirect("main:show_main")
+        response.set_cookie("last_login", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        return response
+
+    context = {
+        "name": "Adrian Nathanael Setiawan",
+        "form": form,
+    }
+
+    return render(request, "login.html", context)
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, "You have been logged out.")
+    response = redirect("main:show_main")
+    response.delete_cookie("last_login")
+    return response
+
+
 def show_main(request):
+    last_login = request.COOKIES.get("last_login", "belum ada sesi login / Cookie tidak ditemukan")
+
     context = {
         "name": "Adrian Nathanael Setiawan",
         "npm": "2506591053",
@@ -20,6 +65,7 @@ def show_main(request):
             "CS student at Universitas Indonesia. Currently exploring software development and data "
             "science. Also Building a Rust's Web Framework."
         ),
+        "last_login": last_login,
     }
     return render(request, "index.html", context)
 
@@ -39,21 +85,18 @@ def show_experience(request):
     return render(request, "experience.html", context)
 
 def show_award(request):
-    json_response = get_awards_json(request)
-    award_list = [
-        item.object
-        for item in serializers.deserialize("json", json_response.content.decode("utf-8"))
-    ]
+    title_query = request.GET.get("title", "").strip()
+    award_list = Award.objects.prefetch_related("starred_by")
+
+    if title_query:
+        award_list = award_list.filter(title__icontains=title_query)
+
     context = {
         "name": "Adrian Nathanael Setiawan",
         "award_list": award_list,
-        "title_query": request.GET.get("title", "").strip(),
+        "title_query": title_query,
     }
     return render(request, "award.html", context)
-
-def _is_valid_action_key(action_key):
-    configured_key = settings.AWARD_ACTION_KEY
-    return bool(configured_key) and secrets.compare_digest(action_key, configured_key)
 
 #---------------------------------- Model Getter Filtering ---------------------------------- 
 def get_awards_json(request):
@@ -77,15 +120,17 @@ def get_experience_json(request):
     return HttpResponse(experiences_json, content_type="application/json")
 
 #---------------------------------- Award Form Model CRUD  ----------------------------------
+@login_required(login_url="main:login")
 def create_award(request):
     form = AwardForm(request.POST if request.method == "POST" else None)
 
-    if request.method == "POST" and form.is_valid() and _is_valid_action_key(form.cleaned_data["action_key"]):
+    if not request.user.is_superuser:
+        raise PermissionDenied("You do not have permission to add awards.")
+
+    if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Award added successfully.")
         return redirect("main:show_award")
-    if request.method == "POST" and form.is_valid():
-        form.add_error("action_key", "Invalid action key.")
     context = {
         "name": "Adrian Nathanael Setiawan",
         "form": form,
@@ -93,30 +138,45 @@ def create_award(request):
 
     return render(request, "award_form.html", context)
 
-
+@login_required(login_url="main:login")
 @require_POST
 def delete_award(request, award_id):
     award = get_object_or_404(Award, id=award_id)
-    form = AwardActionKeyForm(request.POST)
 
-    if not form.is_valid() or not _is_valid_action_key(form.cleaned_data.get("action_key", "")):
-        messages.error(request, "Invalid action key.")
-        return redirect("main:show_award")
+    if not request.user.is_superuser:
+        raise PermissionDenied("You do not have permission to delete awards.")
 
     award.delete()
     messages.success(request, "Award deleted successfully.")
     return redirect("main:show_award")
 
+
+@login_required(login_url="main:login")
+@require_POST
+def toggle_star_award(request, award_id):
+    award = get_object_or_404(Award, id=award_id)
+
+    if award.starred_by.filter(pk=request.user.pk).exists():
+        award.starred_by.remove(request.user)
+        messages.success(request, f"Your star was removed from {award.title}.")
+    else:
+        award.starred_by.add(request.user)
+        messages.success(request, f"You starred {award.title}.")
+
+    return redirect("main:show_award")
+
 #---------------------------------- Experience Form Model CRUD  ----------------------------------
+@login_required(login_url="main:login")
 def create_experience(request):
+    if not request.user.is_superuser:
+        raise PermissionDenied("You do not have permission to add experiences.")
+
     form = ExperienceForm(request.POST if request.method == "POST" else None)
 
-    if request.method == "POST" and form.is_valid() and _is_valid_action_key(form.cleaned_data["action_key"]):
+    if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Experience added successfully.")
         return redirect("main:show_experience")
-    if request.method == "POST" and form.is_valid():
-        form.add_error("action_key", "Invalid action key.")
     context = {
         "name": "Adrian Nathanael Setiawan",
         "form": form,
@@ -124,16 +184,18 @@ def create_experience(request):
 
     return render(request, "experience_create_form.html", context)
 
+@login_required(login_url="main:login")
 def update_experience(request, experience_id):
+    if not request.user.is_superuser:
+        raise PermissionDenied("You do not have permission to update experiences.")
+
     experience = get_object_or_404(Experience, id=experience_id)
     form = ExperienceForm(request.POST if request.method == "POST" else None, instance=experience)
 
-    if request.method == "POST" and form.is_valid() and _is_valid_action_key(form.cleaned_data["action_key"]):
+    if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Experience updated successfully.")
         return redirect("main:show_experience")
-    if request.method == "POST" and form.is_valid():
-        form.add_error("action_key", "Invalid action key.")
     context = {
         "name": "Adrian Nathanael Setiawan",
         "form": form,
@@ -142,15 +204,13 @@ def update_experience(request, experience_id):
 
     return render(request, "experience_update_form.html", context)
 
+@login_required(login_url="main:login")
 @require_POST
 def delete_experience(request, experience_id):
+    if not request.user.is_superuser:
+        raise PermissionDenied("You do not have permission to delete experiences.")
+
     experience = get_object_or_404(Experience, id=experience_id)
-    form = AwardActionKeyForm(request.POST)
-
-    if not form.is_valid() or not _is_valid_action_key(form.cleaned_data.get("action_key", "")):
-        messages.error(request, "Invalid action key.")
-        return redirect("main:show_experience")
-
     experience.delete()
     messages.success(request, "Experience deleted successfully.")
     return redirect("main:show_experience")
