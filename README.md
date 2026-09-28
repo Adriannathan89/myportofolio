@@ -304,3 +304,12 @@ Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QueryS
 * Model AI yang digunakan GPT-5.6-Terra (Medium)
 
 * Prompt history tersedia di AI_DISCLOSURE#3.md
+
+## Assignment 4
+* pada assignment 4 saya menggunakan ai untuk membuatkan saya migration untuk group user editor dengan permission untuk melakukan update terhadap section award dan juga experience. seperti sebelumnya saya menggunakan flow tdd untuk memastikan applikasi saya dapat berjalan dengan benar. 
+
+* pada kali, penggunaan ai saya mengalami halusinasi dimana saat saya memintanya untuk melakukan perubahan untuk menambahkan interkasi terhadap section award dimana saat user yang memiliki akses untuk mengedit award saat menyentuh cardnya akan redirect ke award edit, ai malah melakukan perubahan jika user mengklik judul baru dapat masuk ke mode edit sehingga saya melakukan perbaikan manual pada kasus ini
+
+* pada kasus ini saya belajar bahwa tdd saja belum cukup untuk memastikan applikasi saya berjalan sesuai dengan yang diinginkan, perlu dilakuakn e2e testing untuk memastikan bahwa semuanya berjalan sesuai dengan spek yang sudah disepakati.
+
+* Model AI yang digunakan GPT-6.0-sol (Medium)
