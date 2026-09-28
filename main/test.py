@@ -108,6 +108,30 @@ class MainTest(TestCase):
         self.assertEqual(award.description, "Won first place.")
         self.assertEqual(award.date_received, date(2026, 9, 16))
 
+    def test_award_card_links_to_prefilled_update_form(self):
+        award = Award.objects.create(title="Before edit", date_received=date(2026, 9, 16))
+
+        page = self.client.get(reverse("main:show_award"))
+        self.assertContains(page, f'href="{reverse("main:update_award", args=[award.pk])}"')
+
+        form_page = self.client.get(reverse("main:update_award", args=[award.pk]))
+        self.assertTemplateUsed(form_page, "award_update_form.html")
+        self.assertContains(form_page, 'value="Before edit"')
+        self.assertContains(form_page, 'value="2026-09-16"')
+
+    def test_update_award_saves_changes(self):
+        award = Award.objects.create(title="Before edit", date_received=date(2026, 9, 16))
+
+        response = self.client.post(
+            reverse("main:update_award", args=[award.pk]),
+            {"title": "After edit", "date_received": "2026-09-17"},
+        )
+
+        self.assertRedirects(response, reverse("main:show_award"))
+        award.refresh_from_db()
+        self.assertEqual(award.title, "After edit")
+        self.assertEqual(award.date_received, date(2026, 9, 17))
+
     def test_awards_json_endpoint_returns_serialized_awards(self):
         Award.objects.create(
             title="JSON Award",

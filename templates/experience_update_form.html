@@ -27,15 +27,19 @@
                 {% endfor %}
                 <button type="submit" class="submit-button">Save</button>
                 <a href="{% url 'main:show_experience' %}" class="cancel-button">Cancel</a>
+                {% if perms.main.delete_experience %}
                 <button
                     type="button"
                     class="delete-button"
                     popovertarget="delete-experience-{{ experience.id }}"
                     aria-label="Delete {{ experience.title }}"
                 >Delete</button>
+                {% endif %}
             </form>
 
+            {% if perms.main.delete_experience %}
             {% include "include/delete_confirmation_modal.html" with modal_id_prefix="delete-experience" title_id_prefix="delete-experience-title" modal_title="Delete Experience?" object_title=experience.title target_url_name="main:delete_experience" target_id=experience.id confirm_text="Delete" %}
+            {% endif %}
         </div>
     </section>
 </main>

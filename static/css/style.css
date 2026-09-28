@@ -937,7 +937,7 @@ h1,
     padding: 1rem;
     box-sizing: border-box;
     border-radius: var(--md);
-    cursor: pointer;
+    cursor: default;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     display: flex;
     flex-direction: column;
@@ -952,10 +952,31 @@ h1,
     box-shadow: 0 4px 8px var(--shadow-bg);
 }
 
+.award-grid .award-card--editable {
+    cursor: pointer;
+}
+
+.award-card-edit-link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+}
+
+.award-card-edit-link:focus-visible {
+    outline: 3px solid var(--accent-dark);
+    outline-offset: 2px;
+}
+
+.award-actions {
+    z-index: 2;
+}
+
 .award-grid .award-card .award-title {
     font-size: 16px;
     font-weight: bold;
     margin-bottom: 8px;
+    color: var(--ink);
 }
 
 .award-thumbnail {

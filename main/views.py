@@ -124,7 +124,7 @@ def get_experience_json(request):
 def create_award(request):
     form = AwardForm(request.POST if request.method == "POST" else None)
 
-    if not request.user.is_superuser:
+    if not request.user.has_perm("main.add_award"):
         raise PermissionDenied("You do not have permission to add awards.")
 
     if request.method == "POST" and form.is_valid():
@@ -138,12 +138,33 @@ def create_award(request):
 
     return render(request, "award_form.html", context)
 
+
+@login_required(login_url="main:login")
+def update_award(request, award_id):
+    if not request.user.has_perm("main.change_award"):
+        raise PermissionDenied("You do not have permission to update awards.")
+
+    award = get_object_or_404(Award, id=award_id)
+    form = AwardForm(request.POST if request.method == "POST" else None, instance=award)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Award updated successfully.")
+        return redirect("main:show_award")
+
+    return render(request, "award_update_form.html", {
+        "name": "Adrian Nathanael Setiawan",
+        "form": form,
+        "award": award,
+    })
+
+
 @login_required(login_url="main:login")
 @require_POST
 def delete_award(request, award_id):
     award = get_object_or_404(Award, id=award_id)
 
-    if not request.user.is_superuser:
+    if not request.user.has_perm("main.delete_award"):
         raise PermissionDenied("You do not have permission to delete awards.")
 
     award.delete()
@@ -168,7 +189,7 @@ def toggle_star_award(request, award_id):
 #---------------------------------- Experience Form Model CRUD  ----------------------------------
 @login_required(login_url="main:login")
 def create_experience(request):
-    if not request.user.is_superuser:
+    if not request.user.has_perm("main.add_experience"):
         raise PermissionDenied("You do not have permission to add experiences.")
 
     form = ExperienceForm(request.POST if request.method == "POST" else None)
@@ -186,7 +207,7 @@ def create_experience(request):
 
 @login_required(login_url="main:login")
 def update_experience(request, experience_id):
-    if not request.user.is_superuser:
+    if not request.user.has_perm("main.change_experience"):
         raise PermissionDenied("You do not have permission to update experiences.")
 
     experience = get_object_or_404(Experience, id=experience_id)
@@ -207,7 +228,7 @@ def update_experience(request, experience_id):
 @login_required(login_url="main:login")
 @require_POST
 def delete_experience(request, experience_id):
-    if not request.user.is_superuser:
+    if not request.user.has_perm("main.delete_experience"):
         raise PermissionDenied("You do not have permission to delete experiences.")
 
     experience = get_object_or_404(Experience, id=experience_id)

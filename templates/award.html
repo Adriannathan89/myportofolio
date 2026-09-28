@@ -6,7 +6,7 @@
         <div class="container">
             <div class="award-heading">
                 <h1 class="menu-title">Awards</h1>
-                {% if user.is_authenticated and user.is_superuser %}
+                {% if perms.main.add_award %}
                     <a href="{% url 'main:create_award' %}" class="add-award-button">Add Award</a>
                 {% endif %}
             </div>
@@ -25,7 +25,10 @@
 
             <div class="award-grid">
                 {% for award in award_list %}
-                <div class="award-card">
+                <div class="award-card{% if perms.main.change_award %} award-card--editable{% endif %}">
+                    {% if perms.main.change_award %}
+                    <a class="award-card-edit-link" href="{% url 'main:update_award' award.id %}" aria-label="Edit {{ award.title }}"></a>
+                    {% endif %}
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h2 class="award-title">{{ award.title }}</h2>
                         <p class="award-date">{{ award.date_received|date:"M Y" }}</p>
@@ -37,7 +40,7 @@
                     <p class="award-issuer">Issued by: {{ award.issuer }}</p>
                     <div class="award-actions">
                         {% include "include/award_star_control.html" with award=award %}
-                        {% if user.is_authenticated and user.is_superuser %}
+                        {% if perms.main.delete_award %}
                         <button
                             type="button"
                             class="delete-button"
@@ -51,7 +54,7 @@
                     {% if user.is_authenticated %}
                     {% include "include/award_star_confirmation_modal.html" with award=award %}
                     {% endif %}
-                    {% if user.is_authenticated and user.is_superuser %}
+                    {% if perms.main.delete_award %}
                     {% include "include/delete_confirmation_modal.html" with modal_id_prefix="delete-award" title_id_prefix="delete-award-title" modal_title="Delete Award?" object_title=award.title target_url_name="main:delete_award" target_id=award.id confirm_text="Yes, Delete" %}
                     {% endif %}
                 </div>
