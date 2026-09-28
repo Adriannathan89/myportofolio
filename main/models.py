@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
 import uuid
 
 # Create your models here.
@@ -38,6 +39,9 @@ class Award(models.Model):
     thumbnail = models.CharField(max_length=255, blank=True, null=True)
     issuer = models.CharField(max_length=255, blank=True, null=True)
     date_received = models.DateField()
+    starred_by = models.ManyToManyField(
+        User, related_name="starred_awards", blank=True
+    )
 
     def __str__(self):
         return self.title

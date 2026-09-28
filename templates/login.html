@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block meta %}
+    <title>Login - {{ name }}</title>
+{% endblock meta %}
+{% block content %}
+    <main class="auth-page">
+        <section class="auth-section" aria-labelledby="login-title">
+            <div class="container auth-container">
+                <div class="auth-card">
+                    <div class="auth-card__mark" aria-hidden="true">✦</div>
+                    <p class="auth-card__eyebrow">Portfolio account</p>
+                    <h1 id="login-title" class="auth-card__title">Welcome back</h1>
+                    <p class="auth-card__intro">Sign in to star awards and manage your account.</p>
+
+                    <form method="post" action="{% url 'main:login' %}" class="auth-form">
+                        {% csrf_token %}
+                        {% for error in form.non_field_errors %}
+                            <p class="form-error">{{ error }}</p>
+                        {% endfor %}
+                        {% for field in form %}
+                            <div class="form-group auth-form__group">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <p class="form-error">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="auth-submit-button">Sign in</button>
+                    </form>
+
+                    <p class="auth-account-prompt">
+                        Belum punya akun? <a href="{% url 'main:register' %}">Daftar di sini</a>.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock content %}

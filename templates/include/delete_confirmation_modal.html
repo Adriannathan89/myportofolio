@@ -1,0 +1,34 @@
+<div
+    id="{{ modal_id_prefix }}-{{ target_id }}"
+    class="award-delete-modal"
+    popover="auto"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="{{ title_id_prefix }}-{{ target_id }}"
+>
+    <button
+        type="button"
+        class="award-delete-modal__close"
+        popovertarget="{{ modal_id_prefix }}-{{ target_id }}"
+        popovertargetaction="hide"
+        aria-label="Close delete confirmation"
+    >
+        &times;
+    </button>
+    <h2 id="{{ title_id_prefix }}-{{ target_id }}">{{ modal_title }}</h2>
+    <p>Are you sure you want to delete <strong>{{ object_title }}</strong>?</p>
+    <form method="post" action="{% url target_url_name target_id %}" class="award-delete-form">
+        {% csrf_token %}
+        <div class="award-delete-modal__actions">
+            <button
+                type="button"
+                class="cancel-button"
+                popovertarget="{{ modal_id_prefix }}-{{ target_id }}"
+                popovertargetaction="hide"
+            >
+                Cancel
+            </button>
+            <button type="submit" class="delete-confirm-button">{{ confirm_text }}</button>
+        </div>
+    </form>
+</div>
