@@ -203,3 +203,60 @@ class AuthenticationAuthorizationTest(TestCase):
         self.assertEqual(response.status_code, 403)
         award.refresh_from_db()
         self.assertEqual(award.title, "Protected award")
+
+
+class UserProfileTest(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="profile_user", password="Current-password-123!"
+        )
+        self.url = reverse("main:show_user_profile")
+
+    def test_profile_requires_login(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(
+            response,
+            f'{reverse("main:login")}?next={self.url}',
+        )
+
+    def test_profile_renders_existing_user_in_safe_form(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(self.url)
+
+        self.assertTemplateUsed(response, "user_profile.html")
+        self.assertContains(response, 'name="username"')
+        self.assertContains(response, 'value="profile_user"')
+        self.assertContains(response, 'name="current_password"')
+        self.assertContains(response, 'name="new_password"')
+        self.assertContains(response, 'name="confirm_new_password"')
+        self.assertNotContains(response, self.user.password)
+
+    def test_profile_rejects_wrong_current_password(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {
+            "username": "changed_user",
+            "current_password": "wrong-password",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Current password is incorrect")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "profile_user")
+
+    def test_profile_updates_username_and_password_without_logging_out(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {
+            "username": "changed_user",
+            "current_password": "Current-password-123!",
+            "new_password": "New-strong-password-456!",
+            "confirm_new_password": "New-strong-password-456!",
+        })
+
+        self.assertRedirects(response, self.url)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "changed_user")
+        self.assertTrue(self.user.check_password("New-strong-password-456!"))
+        self.assertContains(self.client.get(self.url), 'value="changed_user"')
