@@ -5,8 +5,7 @@ from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import PermissionDenied
-from django.core import serializers
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -14,7 +13,7 @@ from main.forms import AwardForm, ExperienceForm, UserUpdateForm
 from main.models import Award, Experience
 
 
-#------------------------------- User Authentication Views ----------------------------------
+# ------------------------------- User Authentication Views ----------------------------------
 def register(request):
     form = UserCreationForm(request.POST or None)
 
@@ -29,6 +28,7 @@ def register(request):
     }
     return render(request, "register.html", context)
 
+
 def show_login(request):
     form = AuthenticationForm(request, data=request.POST or None)
 
@@ -36,7 +36,9 @@ def show_login(request):
         login(request, form.get_user())
         messages.success(request, "Login successful.")
         response = redirect("main:show_main")
-        response.set_cookie("last_login", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        response.set_cookie(
+            "last_login", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
 
         return response
 
@@ -47,6 +49,7 @@ def show_login(request):
 
     return render(request, "login.html", context)
 
+
 def logout_view(request):
     logout(request)
     messages.success(request, "You have been logged out.")
@@ -54,9 +57,12 @@ def logout_view(request):
     response.delete_cookie("last_login")
     return response
 
+
 @login_required(login_url="main:login")
 def show_user_profile(request):
-    form = UserUpdateForm(request.POST if request.method == "POST" else None, instance=request.user)
+    form = UserUpdateForm(
+        request.POST if request.method == "POST" else None, instance=request.user
+    )
     if request.method == "POST" and form.is_valid():
         user = form.save()
         if form.cleaned_data["new_password"]:
@@ -74,7 +80,9 @@ def show_user_profile(request):
 
 
 def show_main(request):
-    last_login = request.COOKIES.get("last_login", "belum ada sesi login / Cookie tidak ditemukan")
+    last_login = request.COOKIES.get(
+        "last_login", "belum ada sesi login / Cookie tidak ditemukan"
+    )
 
     context = {
         "name": "Adrian Nathanael Setiawan",
@@ -91,42 +99,59 @@ def show_main(request):
 
 def show_experience(request):
     title_query = request.GET.get("title", "").strip()
-    experience_list = Experience.objects.all()
-
-    if title_query:
-        experience_list = experience_list.filter(title__icontains=title_query)
 
     context = {
         "name": "Adrian Nathanael Setiawan",
-        "experience_list": experience_list,
         "title_query": title_query,
+        "form": ExperienceForm(),
     }
     return render(request, "experience.html", context)
 
+
 def show_award(request):
     title_query = request.GET.get("title", "").strip()
-    award_list = Award.objects.prefetch_related("starred_by")
-
-    if title_query:
-        award_list = award_list.filter(title__icontains=title_query)
 
     context = {
         "name": "Adrian Nathanael Setiawan",
-        "award_list": award_list,
         "title_query": title_query,
+        "form": AwardForm(),
     }
     return render(request, "award.html", context)
 
-#---------------------------------- Model Getter Filtering ---------------------------------- 
+
+# ---------------------------------- Model Getter Filtering ----------------------------------
 def get_awards_json(request):
     title_query = request.GET.get("title", "").strip()
-    awards = Award.objects.all()
+    awards = Award.objects.prefetch_related("starred_by")
 
     if title_query:
         awards = awards.filter(title__icontains=title_query)
 
-    awards_json = serializers.serialize("json", awards)
-    return HttpResponse(awards_json, content_type="application/json")
+    data = []
+
+    for award in awards:
+        starred_users = list(award.starred_by.all())
+        is_starred = request.user in starred_users if request.user.is_authenticated else False
+        starred_by_usernames = ", ".join(user.username for user in starred_users)
+
+        data.append(
+            {
+                "pk": str(award.id),
+                "fields": {
+                    "title": award.title,
+                    "description": award.description or "",
+                    "date_received": award.date_received.isoformat(),
+                    "thumbnail": award.thumbnail or "",
+                    "issuer": award.issuer or "",
+                    "starred_by_names": starred_by_usernames,
+                    "star_count": len(starred_users),
+                    "is_starred": is_starred,
+                },
+            }
+        )
+
+    return JsonResponse(data, safe=False)
+
 
 def get_experience_json(request):
     title_query = request.GET.get("title", "").strip()
@@ -135,10 +160,32 @@ def get_experience_json(request):
     if title_query:
         experiences = experiences.filter(title__icontains=title_query)
 
-    experiences_json = serializers.serialize("json", experiences)
-    return HttpResponse(experiences_json, content_type="application/json")
+    data = []
+    for experience in experiences:
+        data.append(
+            {
+                "pk": str(experience.id),
+                "fields": {
+                    "title": experience.title,
+                    "description": experience.description or "",
+                    "thumbnail": getattr(experience, "thumbnail", None),
+                    "category_display": experience.get_category_display(),
+                    "keyfeatures": experience.keyfeatures or [],
+                    "start_at": experience.start_at.isoformat()
+                    if experience.start_at
+                    else None,
+                    "ended_at": experience.ended_at.isoformat()
+                    if experience.ended_at
+                    else None,
+                    "is_ongoing": experience.is_ongoing,
+                },
+            }
+        )
 
-#---------------------------------- Award Form Model CRUD  ----------------------------------
+    return JsonResponse(data, safe=False)
+
+
+# ---------------------------------- Award Form Model CRUD  ----------------------------------
 @login_required(login_url="main:login")
 def create_award(request):
     form = AwardForm(request.POST if request.method == "POST" else None)
@@ -157,6 +204,20 @@ def create_award(request):
 
     return render(request, "award_form.html", context)
 
+@require_POST
+def create_award_ajax(request):
+    if not request.user.has_perm("main.add_award"):
+        return JsonResponse({"message": "You do not have permission to add awards."}, status=403)
+
+    form = AwardForm(request.POST)
+    if form.is_valid():
+        award = form.save()
+        return JsonResponse({
+            "message": "Award added successfully.",
+            "pk": str(award.id),
+        }, status=201)
+    else:
+        return JsonResponse({"errors": form.errors}, status=400)
 
 @login_required(login_url="main:login")
 def update_award(request, award_id):
@@ -171,11 +232,15 @@ def update_award(request, award_id):
         messages.success(request, "Award updated successfully.")
         return redirect("main:show_award")
 
-    return render(request, "award_update_form.html", {
-        "name": "Adrian Nathanael Setiawan",
-        "form": form,
-        "award": award,
-    })
+    return render(
+        request,
+        "award_update_form.html",
+        {
+            "name": "Adrian Nathanael Setiawan",
+            "form": form,
+            "award": award,
+        },
+    )
 
 
 @login_required(login_url="main:login")
@@ -205,7 +270,8 @@ def toggle_star_award(request, award_id):
 
     return redirect("main:show_award")
 
-#---------------------------------- Experience Form Model CRUD  ----------------------------------
+
+# ---------------------------------- Experience Form Model CRUD  ----------------------------------
 @login_required(login_url="main:login")
 def create_experience(request):
     if not request.user.has_perm("main.add_experience"):
@@ -224,13 +290,16 @@ def create_experience(request):
 
     return render(request, "experience_create_form.html", context)
 
+
 @login_required(login_url="main:login")
 def update_experience(request, experience_id):
     if not request.user.has_perm("main.change_experience"):
         raise PermissionDenied("You do not have permission to update experiences.")
 
     experience = get_object_or_404(Experience, id=experience_id)
-    form = ExperienceForm(request.POST if request.method == "POST" else None, instance=experience)
+    form = ExperienceForm(
+        request.POST if request.method == "POST" else None, instance=experience
+    )
 
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -243,6 +312,7 @@ def update_experience(request, experience_id):
     }
 
     return render(request, "experience_update_form.html", context)
+
 
 @login_required(login_url="main:login")
 @require_POST

@@ -7,62 +7,478 @@
             <div class="award-heading">
                 <h1 class="menu-title">Awards</h1>
                 {% if perms.main.add_award %}
-                    <a href="{% url 'main:create_award' %}" class="add-award-button">Add Award</a>
+                <button type="button" class="add-award-button" popovertarget="add-award-modal">
+                    Add Award
+                </button>
                 {% endif %}
             </div>
 
-            <form method="get" action="{% url 'main:show_award' %}" class="award-search">
-                <input
-                    type="search"
-                    name="title"
-                    value="{{ title_query }}"
-                    placeholder="Search by award title"
-                    class="award-search__input"
-                    aria-label="Search by award title"
-                >
-                <button type="submit" class="search-button">Search</button>
+            <form id="award-search-form" method="get" action="{% url 'main:show_award' %}" class="award-search">
+                <label for="award-title-search">Search awards</label>
+                <input type="search" name="title" id="award-title-search" value="{{ title_query }}"
+                    placeholder="Search by award title" class="award-search__input" aria-label="Search by award title">
             </form>
 
-            <div class="award-grid">
-                {% for award in award_list %}
-                <div class="award-card{% if perms.main.change_award %} award-card--editable{% endif %}">
-                    {% if perms.main.change_award %}
-                    <a class="award-card-edit-link" href="{% url 'main:update_award' award.id %}" aria-label="Edit {{ award.title }}"></a>
-                    {% endif %}
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 class="award-title">{{ award.title }}</h2>
-                        <p class="award-date">{{ award.date_received|date:"M Y" }}</p>
-                    </div>
-                    {% if award.thumbnail %}
-                    <img class="award-thumbnail" src="{{ award.thumbnail }}" alt="{{ award.title }} thumbnail">
-                    {% endif %}
-                    <p class="award-description">{{ award.description }}</p>
-                    <p class="award-issuer">Issued by: {{ award.issuer }}</p>
-                    <div class="award-actions">
-                        {% include "include/award_star_control.html" with award=award %}
-                        {% if perms.main.delete_award %}
-                        <button
-                            type="button"
-                            class="delete-button"
-                            popovertarget="delete-award-{{ award.id }}"
-                            aria-label="Delete {{ award.title }}"
-                        >
-                            Delete
-                        </button>
-                        {% endif %}
-                    </div>
-                    {% if user.is_authenticated %}
-                    {% include "include/award_star_confirmation_modal.html" with award=award %}
-                    {% endif %}
-                    {% if perms.main.delete_award %}
-                    {% include "include/delete_confirmation_modal.html" with modal_id_prefix="delete-award" title_id_prefix="delete-award-title" modal_title="Delete Award?" object_title=award.title target_url_name="main:delete_award" target_id=award.id confirm_text="Yes, Delete" %}
-                    {% endif %}
-                </div>
-                {% empty %}
-                <p class="empty-state">No awards have been added yet.</p>
-                {% endfor %}
+            <div id="award-loading" class="empty-state-hidden">
+                <p>Loading...</p>
+            </div>
+            <div id="award-error" class="empty-state-hidden">
+                <p>Failed to load awards. Please try again later.</p>
+            </div>
+            <div id="award-empty" class="empty-state-hidden">
+                <p>No awards have been added yet.</p>
+            </div>
+
+            <div id="award-grid" class="award-grid empty-state-hidden">
             </div>
         </div>
     </section>
 </main>
+
+{% if perms.main.add_award %}
+{% include "components/award_from_modal.html" %}
+{% endif %}
+
+<script>
+    const BASE_AWARD_URL = "{% url 'main:get_awards_json' %}";
+    const UPDATE_AWARD_URL = "{% url 'main:update_award' '00000000-0000-0000-0000-000000000000' %}";
+    const DELETE_AWARD_URL = "{% url 'main:delete_award' '00000000-0000-0000-0000-000000000000' %}";
+    const TOGGLE_STAR_AWARD_URL = "{% url 'main:toggle_star_award' '00000000-0000-0000-0000-000000000000' %}";
+    const LOGIN_URL = "{% url 'main:login' %}";
+    const CSRF_TOKEN = "{{ csrf_token }}";
+    const IS_AUTHENTICATED = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
+    const HAS_CHANGE_AWARD = "{{ perms.main.change_award|yesno:'true,false' }}" === "true";
+    const HAS_DELETE_AWARD = "{{ perms.main.delete_award|yesno:'true,false' }}" === "true";
+    const SEARCH_DEBOUNCE_DELAY = 300;
+
+    let awardAbortController;
+    let awardSearchDebounceTimeout;
+
+    const awardSearchForm = document.getElementById("award-search-form");
+    const awardSearchInput = document.getElementById("award-title-search");
+    const awardLoadingState = document.getElementById("award-loading");
+    const awardErrorState = document.getElementById("award-error");
+    const awardEmptyState = document.getElementById("award-empty");
+    const awardGrid = document.getElementById("award-grid");
+
+    function displayAwardState({ showLoading = false, showError = false, showEmpty = false, showGrid = false }) {
+        awardLoadingState.classList.toggle("empty-state-hidden", !showLoading);
+        awardErrorState.classList.toggle("empty-state-hidden", !showError);
+        awardEmptyState.classList.toggle("empty-state-hidden", !showEmpty);
+        awardGrid.classList.toggle("empty-state-hidden", !showGrid);
+    }
+
+    function buildAwardCard(item) {
+        const award = item.fields;
+        const awardId = item.pk;
+        const card = document.createElement("div");
+        card.className = `award-card${HAS_CHANGE_AWARD ? " award-card--editable" : ""}`;
+
+        if (HAS_CHANGE_AWARD) {
+            const editLink = document.createElement("a");
+            editLink.className = "award-card-edit-link";
+            editLink.href = replaceAwardId(UPDATE_AWARD_URL, awardId);
+            editLink.setAttribute("aria-label", `Edit ${award.title || "award"}`);
+            card.appendChild(editLink);
+        }
+
+        const heading = document.createElement("div");
+        heading.style.display = "flex";
+        heading.style.justifyContent = "space-between";
+        heading.style.alignItems = "center";
+
+        const title = document.createElement("h2");
+        title.className = "award-title";
+        title.textContent = award.title || "";
+        heading.appendChild(title);
+
+        const date = document.createElement("p");
+        date.className = "award-date";
+        date.textContent = formatAwardDate(award.date_received);
+        heading.appendChild(date);
+        card.appendChild(heading);
+
+        const thumbnailUrl = getSafeImageURL(award.thumbnail);
+        if (thumbnailUrl) {
+            const image = document.createElement("img");
+            image.className = "award-thumbnail";
+            image.src = thumbnailUrl;
+            image.alt = `${award.title || "Award"} thumbnail`;
+            card.appendChild(image);
+        }
+
+        const description = document.createElement("p");
+        description.className = "award-description";
+        description.textContent = award.description || "";
+        card.appendChild(description);
+
+        const issuer = document.createElement("p");
+        issuer.className = "award-issuer";
+        issuer.textContent = `Issued by: ${award.issuer || ""}`;
+        card.appendChild(issuer);
+
+        const actions = document.createElement("div");
+        actions.className = "award-actions";
+        actions.appendChild(buildAwardStarControl(award, awardId));
+        if (HAS_DELETE_AWARD) {
+            actions.appendChild(buildAwardDeleteButton(award, awardId));
+        }
+        card.appendChild(actions);
+
+        if (IS_AUTHENTICATED) {
+            card.appendChild(buildAwardStarModal(award, awardId));
+        }
+        if (HAS_DELETE_AWARD) {
+            card.appendChild(buildAwardDeleteModal(award, awardId));
+        }
+
+        return card;
+    }
+
+    function buildAwardStarControl(award, awardId) {
+        const starCount = Number(award.star_count) || 0;
+        if (!IS_AUTHENTICATED) {
+            const loginLink = document.createElement("a");
+            loginLink.className = "button-star button-star--login";
+            loginLink.href = LOGIN_URL;
+            loginLink.title = "Log in to star this award";
+            loginLink.appendChild(createStarIcon());
+            loginLink.append("Log in to star", createStarCount(starCount));
+            return loginLink;
+        }
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `button-star${award.is_starred ? " is-starred" : ""}`;
+        button.setAttribute("popovertarget", `star-award-${awardId}`);
+        button.title = starCount > 0
+            ? `Starred by ${award.starred_by_names || ""}`
+            : "Be the first to star this award";
+        button.setAttribute("aria-label", `${award.is_starred ? "Unstar" : "Star"} ${award.title || "award"}`);
+        button.appendChild(createStarIcon());
+        button.append(award.is_starred ? "Unstar" : "Star", createStarCount(starCount));
+        return button;
+    }
+
+    function createStarIcon() {
+        const icon = document.createElement("span");
+        icon.className = "star-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "★";
+        return icon;
+    }
+
+    function createStarCount(count) {
+        const countElement = document.createElement("span");
+        countElement.className = "star-count";
+        countElement.textContent = count;
+        return countElement;
+    }
+
+    function buildAwardStarModal(award, awardId) {
+        const modalId = `star-award-${awardId}`;
+        const titleId = `star-award-title-${awardId}`;
+        const modal = document.createElement("div");
+        modal.id = modalId;
+        modal.className = "award-star-modal";
+        modal.setAttribute("popover", "auto");
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("aria-labelledby", titleId);
+
+        const closeButton = document.createElement("button");
+        closeButton.type = "button";
+        closeButton.className = "award-star-modal__close";
+        closeButton.setAttribute("popovertarget", modalId);
+        closeButton.setAttribute("popovertargetaction", "hide");
+        closeButton.setAttribute("aria-label", "Close star confirmation");
+        closeButton.textContent = "×";
+        modal.appendChild(closeButton);
+
+        const heading = document.createElement("h2");
+        heading.id = titleId;
+        heading.textContent = award.is_starred ? "Remove your star?" : "Star this award?";
+        modal.appendChild(heading);
+
+        const message = document.createElement("p");
+        message.append(award.is_starred
+            ? "Are you sure you want to remove your star from "
+            : "Are you sure you want to give a star to ");
+        const strongTitle = document.createElement("strong");
+        strongTitle.textContent = award.title || "this award";
+        message.appendChild(strongTitle);
+        message.append("?");
+        modal.appendChild(message);
+
+        const form = createPostForm(replaceAwardId(TOGGLE_STAR_AWARD_URL, awardId), "award-star-modal__form");
+        const modalActions = document.createElement("div");
+        modalActions.className = "award-star-modal__actions";
+
+        const cancelButton = document.createElement("button");
+        cancelButton.type = "button";
+        cancelButton.className = "cancel-button";
+        cancelButton.setAttribute("popovertarget", modalId);
+        cancelButton.setAttribute("popovertargetaction", "hide");
+        cancelButton.textContent = "Cancel";
+        modalActions.appendChild(cancelButton);
+
+        const confirmButton = document.createElement("button");
+        confirmButton.type = "submit";
+        confirmButton.className = "star-confirm-button";
+        confirmButton.textContent = award.is_starred ? "Unstar" : "Give Star";
+        modalActions.appendChild(confirmButton);
+        form.appendChild(modalActions);
+        modal.appendChild(form);
+
+        return modal;
+    }
+
+    function buildAwardDeleteButton(award, awardId) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "delete-button";
+        button.setAttribute("popovertarget", `delete-award-${awardId}`);
+        button.setAttribute("aria-label", `Delete ${award.title || "award"}`);
+        button.textContent = "Delete";
+        return button;
+    }
+
+    function buildAwardDeleteModal(award, awardId) {
+        const modalId = `delete-award-${awardId}`;
+        const titleId = `delete-award-title-${awardId}`;
+        const modal = document.createElement("div");
+        modal.id = modalId;
+        modal.className = "award-delete-modal";
+        modal.setAttribute("popover", "auto");
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("aria-labelledby", titleId);
+
+        const closeButton = document.createElement("button");
+        closeButton.type = "button";
+        closeButton.className = "award-delete-modal__close";
+        closeButton.setAttribute("popovertarget", modalId);
+        closeButton.setAttribute("popovertargetaction", "hide");
+        closeButton.setAttribute("aria-label", "Close delete confirmation");
+        closeButton.textContent = "×";
+        modal.appendChild(closeButton);
+
+        const heading = document.createElement("h2");
+        heading.id = titleId;
+        heading.textContent = "Delete Award?";
+        modal.appendChild(heading);
+
+        const message = document.createElement("p");
+        message.append("Are you sure you want to delete ");
+        const strongTitle = document.createElement("strong");
+        strongTitle.textContent = award.title || "this award";
+        message.appendChild(strongTitle);
+        message.append("?");
+        modal.appendChild(message);
+
+        const form = createPostForm(replaceAwardId(DELETE_AWARD_URL, awardId), "award-delete-form");
+        const modalActions = document.createElement("div");
+        modalActions.className = "award-delete-modal__actions";
+
+        const cancelButton = document.createElement("button");
+        cancelButton.type = "button";
+        cancelButton.className = "cancel-button";
+        cancelButton.setAttribute("popovertarget", modalId);
+        cancelButton.setAttribute("popovertargetaction", "hide");
+        cancelButton.textContent = "Cancel";
+        modalActions.appendChild(cancelButton);
+
+        const confirmButton = document.createElement("button");
+        confirmButton.type = "submit";
+        confirmButton.className = "delete-confirm-button";
+        confirmButton.textContent = "Yes, Delete";
+        modalActions.appendChild(confirmButton);
+        form.appendChild(modalActions);
+        modal.appendChild(form);
+
+        return modal;
+    }
+
+    function createPostForm(action, className) {
+        const form = document.createElement("form");
+        form.method = "post";
+        form.action = action;
+        form.className = className;
+
+        const csrfInput = document.createElement("input");
+        csrfInput.type = "hidden";
+        csrfInput.name = "csrfmiddlewaretoken";
+        csrfInput.value = CSRF_TOKEN;
+        form.appendChild(csrfInput);
+        return form;
+    }
+
+    function replaceAwardId(urlTemplate, awardId) {
+        return urlTemplate.replace("00000000-0000-0000-0000-000000000000", encodeURIComponent(awardId));
+    }
+
+    function formatAwardDate(dateValue) {
+        if (!dateValue) {
+            return "";
+        }
+
+        const [year, month, day] = dateValue.split("-").map(Number);
+        return new Intl.DateTimeFormat("en", { month: "short", year: "numeric" })
+            .format(new Date(year, month - 1, day));
+    }
+
+    function getSafeImageURL(value) {
+        if (typeof value !== "string") {
+            return "";
+        }
+
+        const imageUrl = value.trim();
+        if (!imageUrl || imageUrl.startsWith("//") || imageUrl.includes("\\")) {
+            return "";
+        }
+        if (imageUrl.startsWith("/")) {
+            return imageUrl;
+        }
+
+        try {
+            const parsedUrl = new URL(imageUrl, window.location.origin);
+            if (["http:", "https:"].includes(parsedUrl.protocol) && parsedUrl.hostname) {
+                return parsedUrl.href;
+            }
+        } catch (error) {
+            return "";
+        }
+
+        return "";
+    }
+
+    async function loadAwards(title = "") {
+        if (awardAbortController) {
+            awardAbortController.abort();
+        }
+
+        const requestController = new AbortController();
+        awardAbortController = requestController;
+        const requestUrl = new URL(BASE_AWARD_URL, window.location.origin);
+        requestUrl.searchParams.set("title", title);
+
+        try {
+            displayAwardState({ showLoading: true });
+            const response = await fetch(requestUrl, {
+                headers: { Accept: "application/json" },
+                signal: requestController.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Award request failed with status ${response.status}`);
+            }
+
+            const awards = await response.json();
+            if (!Array.isArray(awards)) {
+                throw new Error("Award response must be a list.");
+            }
+            if (requestController.signal.aborted) {
+                return;
+            }
+
+            awardGrid.replaceChildren();
+            awards.forEach((item) => awardGrid.appendChild(buildAwardCard(item)));
+            displayAwardState({ showEmpty: awards.length === 0, showGrid: awards.length > 0 });
+        } catch (error) {
+            if (error.name === "AbortError" || requestController.signal.aborted) {
+                return;
+            }
+
+            displayAwardState({ showError: true });
+        }
+    }
+
+    function searchAwards() {
+        const title = awardSearchInput.value.trim();
+        const nextUrl = new URL(window.location.href);
+        if (title) {
+            nextUrl.searchParams.set("title", title);
+        } else {
+            nextUrl.searchParams.delete("title");
+        }
+        window.history.replaceState({}, "", nextUrl);
+        loadAwards(title);
+    }
+
+    awardSearchInput.addEventListener("input", () => {
+        clearTimeout(awardSearchDebounceTimeout);
+        if (awardAbortController) {
+            awardAbortController.abort();
+        }
+        awardSearchDebounceTimeout = setTimeout(searchAwards, SEARCH_DEBOUNCE_DELAY);
+    });
+
+    awardSearchForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        clearTimeout(awardSearchDebounceTimeout);
+        searchAwards();
+    });
+
+    const CREATE_AWARD_ENDPOINT = "{% url 'main:create_award_ajax' %}";
+    const awardForm = document.getElementById("award-form");
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    async function addAward(event) {
+        event.preventDefault();
+
+        const submitButton = awardForm.querySelector('button[type="submit"]');
+        if (!submitButton) {
+            return;
+        }
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(CREATE_AWARD_ENDPOINT, {
+                method: "POST",
+                headers: { "X-CSRFToken": getCookie("csrftoken") },
+                body: new FormData(awardForm),
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                awardForm.reset();
+                document.getElementById("add-award-modal")?.hidePopover();
+                showToast("Success", "New award added successfully!", "success");
+                loadAwards(awardSearchInput.value.trim());
+            } else {
+                const errorMessages = result.errors
+                    ? Object.values(result.errors)
+                        .flat()
+                        .map((error) => String(error?.message || error))
+                    : [result.message || `Something went wrong (status ${response.status}).`];
+                showToast("Failed to add award", errorMessages.join(" "), "error");
+            }
+        } catch (error) {
+            console.error("Error adding award:", error);
+            showToast("Failed to add award", "Could not reach the server. Please try again.", "error");
+        } finally {
+            submitButton.disabled = false;
+        }
+    }
+
+    if (awardForm) {
+        awardForm.addEventListener("submit", addAward);
+    }
+
+    loadAwards(awardSearchInput.value.trim());
+</script>
 {% endblock content %}
