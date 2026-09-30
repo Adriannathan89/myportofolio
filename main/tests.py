@@ -1,9 +1,106 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
+from main.forms import AwardForm, ExperienceForm
 from main.models import Award, Experience
+
+
+class XSSInputValidationTest(SimpleTestCase):
+    def test_award_form_strips_tags_from_displayed_text_fields(self):
+        form = AwardForm(
+            data={
+                "title": "<strong>Hackathon Winner</strong>",
+                "description": "<p>Won first place.</p>",
+                "thumbnail": "/static/img/award.png",
+                "issuer": "<em>Tech Community</em>",
+                "date_received": "2026-09-30",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["title"], "Hackathon Winner")
+        self.assertEqual(form.cleaned_data["description"], "Won first place.")
+        self.assertEqual(form.cleaned_data["issuer"], "Tech Community")
+
+    def test_award_form_rejects_title_containing_only_html(self):
+        form = AwardForm(
+            data={
+                "title": '<img src="x" onerror="alert(1)">',
+                "date_received": "2026-09-30",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("title", form.errors)
+
+    def test_award_form_only_accepts_local_or_http_thumbnail_urls(self):
+        safe_form = AwardForm(
+            data={
+                "title": "Certificate",
+                "thumbnail": "https://example.com/certificate.png",
+                "date_received": "2026-09-30",
+            }
+        )
+        self.assertTrue(safe_form.is_valid(), safe_form.errors)
+
+        for thumbnail in (
+            "javascript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "//example.com/certificate.png",
+        ):
+            with self.subTest(thumbnail=thumbnail):
+                form = AwardForm(
+                    data={
+                        "title": "Certificate",
+                        "thumbnail": thumbnail,
+                        "date_received": "2026-09-30",
+                    }
+                )
+                self.assertFalse(form.is_valid())
+                self.assertIn("thumbnail", form.errors)
+
+    def test_experience_form_strips_tags_from_text_and_key_features(self):
+        form = ExperienceForm(
+            data={
+                "title": "<strong>Research Assistant</strong>",
+                "description": "<p>Analyzed software quality.</p>",
+                "category": "research",
+                "keyfeatures": '["<b>Reviewed code</b>", "<i>Prepared reports</i>"]',
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["title"], "Research Assistant")
+        self.assertEqual(form.cleaned_data["description"], "Analyzed software quality.")
+        self.assertEqual(
+            form.cleaned_data["keyfeatures"],
+            ["Reviewed code", "Prepared reports"],
+        )
+
+    def test_experience_form_rejects_title_containing_only_html(self):
+        form = ExperienceForm(
+            data={
+                "title": '<img src="x" onerror="alert(1)">',
+                "category": "research",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("title", form.errors)
+
+    def test_experience_form_rejects_non_text_key_features(self):
+        form = ExperienceForm(
+            data={
+                "title": "Research Assistant",
+                "category": "research",
+                "keyfeatures": '["Valid feature", {"unexpected": "object"}]',
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("keyfeatures", form.errors)
 
 
 class AuthenticationAuthorizationTest(TestCase):

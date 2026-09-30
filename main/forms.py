@@ -2,6 +2,8 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django.forms import CharField, DateInput, ModelForm, PasswordInput, Select, TextInput, Textarea
 from django.contrib.auth.models import User
+from django.utils.html import strip_tags
+from urllib.parse import urlsplit
 
 from main.models import Award, Experience
 
@@ -116,6 +118,36 @@ class AwardForm(ModelForm):
             ),
         }
 
+    def clean_title(self):
+        title = strip_tags(self.cleaned_data["title"]).strip()
+        if not title:
+            raise ValidationError("Award title can't contain only HTML tags.")
+        return title
+
+    def clean_description(self):
+        return strip_tags(self.cleaned_data.get("description") or "").strip()
+
+    def clean_issuer(self):
+        return strip_tags(self.cleaned_data.get("issuer") or "").strip()
+
+    def clean_thumbnail(self):
+        thumbnail = strip_tags(self.cleaned_data.get("thumbnail") or "").strip()
+        if not thumbnail:
+            return thumbnail
+
+        if thumbnail.startswith("/") and not thumbnail.startswith("//") and "\\" not in thumbnail:
+            return thumbnail
+
+        try:
+            parsed_url = urlsplit(thumbnail)
+        except ValueError as error:
+            raise ValidationError("Use a /static/... path or an http(s) URL.") from error
+
+        if parsed_url.scheme.lower() not in {"http", "https"} or not parsed_url.netloc:
+            raise ValidationError("Use a /static/... path or an http(s) URL.")
+
+        return thumbnail
+
 class ExperienceForm(ModelForm):
     class Meta:
         model = Experience
@@ -168,3 +200,28 @@ class ExperienceForm(ModelForm):
                 }
             ),
         }
+
+    def clean_title(self):
+        title = strip_tags(self.cleaned_data["title"]).strip()
+        if not title:
+            raise ValidationError("Experience title can't contain only HTML tags.")
+        return title
+
+    def clean_description(self):
+        return strip_tags(self.cleaned_data.get("description") or "").strip()
+
+    def clean_keyfeatures(self):
+        keyfeatures = self.cleaned_data.get("keyfeatures")
+        if keyfeatures in (None, ""):
+            return []
+        if not isinstance(keyfeatures, list):
+            raise ValidationError("Key features must be a JSON array of text values.")
+
+        cleaned_keyfeatures = []
+        for keyfeature in keyfeatures:
+            if not isinstance(keyfeature, str):
+                raise ValidationError("Each key feature must be text.")
+            cleaned_keyfeature = strip_tags(keyfeature).strip()
+            if cleaned_keyfeature:
+                cleaned_keyfeatures.append(cleaned_keyfeature)
+        return cleaned_keyfeatures

@@ -98,10 +98,11 @@
         heading.appendChild(date);
         card.appendChild(heading);
 
-        if (award.thumbnail) {
+        const thumbnailUrl = getSafeImageURL(award.thumbnail);
+        if (thumbnailUrl) {
             const image = document.createElement("img");
             image.className = "award-thumbnail";
-            image.src = award.thumbnail;
+            image.src = thumbnailUrl;
             image.alt = `${award.title || "Award"} thumbnail`;
             card.appendChild(image);
         }
@@ -324,6 +325,31 @@
         const [year, month, day] = dateValue.split("-").map(Number);
         return new Intl.DateTimeFormat("en", { month: "short", year: "numeric" })
             .format(new Date(year, month - 1, day));
+    }
+
+    function getSafeImageURL(value) {
+        if (typeof value !== "string") {
+            return "";
+        }
+
+        const imageUrl = value.trim();
+        if (!imageUrl || imageUrl.startsWith("//") || imageUrl.includes("\\")) {
+            return "";
+        }
+        if (imageUrl.startsWith("/")) {
+            return imageUrl;
+        }
+
+        try {
+            const parsedUrl = new URL(imageUrl, window.location.origin);
+            if (["http:", "https:"].includes(parsedUrl.protocol) && parsedUrl.hostname) {
+                return parsedUrl.href;
+            }
+        } catch (error) {
+            return "";
+        }
+
+        return "";
     }
 
     async function loadAwards(title = "") {

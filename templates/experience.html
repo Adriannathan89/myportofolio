@@ -85,10 +85,11 @@
         descriptionElement.className = "experience-description";
         descriptionElement.textContent = experience.description || "";
 
-        if (experience.thumbnail) {
+        const thumbnailUrl = getSafeImageURL(experience.thumbnail);
+        if (thumbnailUrl) {
             const imageElement = document.createElement("img");
             imageElement.className = "experience-thumbnail";
-            imageElement.src = experience.thumbnail;
+            imageElement.src = thumbnailUrl;
             imageElement.alt = `${experience.title || "Experience"} thumbnail`;
             cardElement.appendChild(imageElement);
         }
@@ -139,6 +140,31 @@
         const [year, month, day] = dateValue.split("-").map(Number);
         const date = new Date(year, month - 1, day);
         return new Intl.DateTimeFormat("en", { month: "short", year: "numeric" }).format(date);
+    }
+
+    function getSafeImageURL(value) {
+        if (typeof value !== "string") {
+            return "";
+        }
+
+        const imageUrl = value.trim();
+        if (!imageUrl || imageUrl.startsWith("//") || imageUrl.includes("\\")) {
+            return "";
+        }
+        if (imageUrl.startsWith("/")) {
+            return imageUrl;
+        }
+
+        try {
+            const parsedUrl = new URL(imageUrl, window.location.origin);
+            if (["http:", "https:"].includes(parsedUrl.protocol) && parsedUrl.hostname) {
+                return parsedUrl.href;
+            }
+        } catch (error) {
+            return "";
+        }
+
+        return "";
     }
 
     async function loadExperiences(title = "") {
