@@ -103,6 +103,7 @@ def show_experience(request):
     context = {
         "name": "Adrian Nathanael Setiawan",
         "title_query": title_query,
+        "form": ExperienceForm(),
     }
     return render(request, "experience.html", context)
 
@@ -113,6 +114,7 @@ def show_award(request):
     context = {
         "name": "Adrian Nathanael Setiawan",
         "title_query": title_query,
+        "form": AwardForm(),
     }
     return render(request, "award.html", context)
 
@@ -202,6 +204,20 @@ def create_award(request):
 
     return render(request, "award_form.html", context)
 
+@require_POST
+def create_award_ajax(request):
+    if not request.user.has_perm("main.add_award"):
+        return JsonResponse({"message": "You do not have permission to add awards."}, status=403)
+
+    form = AwardForm(request.POST)
+    if form.is_valid():
+        award = form.save()
+        return JsonResponse({
+            "message": "Award added successfully.",
+            "pk": str(award.id),
+        }, status=201)
+    else:
+        return JsonResponse({"errors": form.errors}, status=400)
 
 @login_required(login_url="main:login")
 def update_award(request, award_id):

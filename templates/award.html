@@ -7,21 +7,16 @@
             <div class="award-heading">
                 <h1 class="menu-title">Awards</h1>
                 {% if perms.main.add_award %}
-                    <a href="{% url 'main:create_award' %}" class="add-award-button">Add Award</a>
+                <button type="button" class="add-award-button" popovertarget="add-award-modal">
+                    Add Award
+                </button>
                 {% endif %}
             </div>
 
             <form id="award-search-form" method="get" action="{% url 'main:show_award' %}" class="award-search">
                 <label for="award-title-search">Search awards</label>
-                <input
-                    type="search"
-                    name="title"
-                    id="award-title-search"
-                    value="{{ title_query }}"
-                    placeholder="Search by award title"
-                    class="award-search__input"
-                    aria-label="Search by award title"
-                >
+                <input type="search" name="title" id="award-title-search" value="{{ title_query }}"
+                    placeholder="Search by award title" class="award-search__input" aria-label="Search by award title">
             </form>
 
             <div id="award-loading" class="empty-state-hidden">
@@ -39,6 +34,10 @@
         </div>
     </section>
 </main>
+
+{% if perms.main.add_award %}
+{% include "components/award_from_modal.html" %}
+{% endif %}
 
 <script>
     const BASE_AWARD_URL = "{% url 'main:get_awards_json' %}";
@@ -393,6 +392,66 @@
         clearTimeout(awardSearchDebounceTimeout);
         searchAwards();
     });
+
+    const CREATE_AWARD_ENDPOINT = "{% url 'main:create_award_ajax' %}";
+    const awardForm = document.getElementById("award-form");
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    async function addAward(event) {
+        event.preventDefault();
+
+        const submitButton = awardForm.querySelector('button[type="submit"]');
+        if (!submitButton) {
+            return;
+        }
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(CREATE_AWARD_ENDPOINT, {
+                method: "POST",
+                headers: { "X-CSRFToken": getCookie("csrftoken") },
+                body: new FormData(awardForm),
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                awardForm.reset();
+                document.getElementById("add-award-modal")?.hidePopover();
+                showToast("Success", "New award added successfully!", "success");
+                loadAwards(awardSearchInput.value.trim());
+            } else {
+                const errorMessages = result.errors
+                    ? Object.values(result.errors)
+                        .flat()
+                        .map((error) => String(error?.message || error))
+                    : [result.message || `Something went wrong (status ${response.status}).`];
+                showToast("Failed to add award", errorMessages.join(" "), "error");
+            }
+        } catch (error) {
+            console.error("Error adding award:", error);
+            showToast("Failed to add award", "Could not reach the server. Please try again.", "error");
+        } finally {
+            submitButton.disabled = false;
+        }
+    }
+
+    if (awardForm) {
+        awardForm.addEventListener("submit", addAward);
+    }
 
     loadAwards(awardSearchInput.value.trim());
 </script>
