@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -81,7 +81,7 @@ def login(driver, wait, username, password):
     driver.find_element(By.NAME, "password").send_keys(password)
     driver.find_element(By.XPATH, "//button[@type='submit']").click()
     wait.until(EC.url_to_be(f"{BASE_URL}/"))
-    wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "nav-user")))
+    wait.until(EC.visibility_of_element_located((By.LINK_TEXT, username)))
 
 
 def award_card(wait, title):
@@ -94,6 +94,44 @@ def award_card(wait, title):
             )
         )
     )
+
+
+def award_card_with_star_state(wait, title, starred, count):
+    def find_card(browser):
+        for card in browser.find_elements(
+            By.CSS_SELECTOR, ".award-card"
+        ):
+            try:
+                heading = card.find_element(By.TAG_NAME, "h2")
+                if heading.get_attribute("textContent") != title:
+                    continue
+                button = card.find_element(By.CLASS_NAME, "button-star")
+                is_starred = "is-starred" in button.get_attribute("class")
+                star_count = card.find_element(By.CLASS_NAME, "star-count").text
+                if is_starred is starred and star_count == str(count):
+                    return card
+            except StaleElementReferenceException:
+                return False
+        return False
+
+    return wait.until(find_card)
+
+
+def click_element(driver, wait, element):
+    driver.execute_script(
+        "document.documentElement.style.scrollBehavior = 'auto'; "
+        "arguments[0].scrollIntoView({block: 'center'});",
+        element,
+    )
+    wait.until(
+        lambda browser: browser.execute_script(
+            "const rect = arguments[0].getBoundingClientRect(); "
+            "return rect.top >= 0 && rect.bottom <= window.innerHeight;",
+            element,
+        )
+    )
+    wait.until(lambda _: element.is_displayed() and element.is_enabled())
+    element.click()
 
 
 def assert_forbidden(driver, path):
@@ -253,28 +291,22 @@ def main():
         # 4. Akun biasa dapat memberi dan membatalkan star pada Award.
         driver.get(f"{BASE_URL}/award/")
         card = award_card(wait, test_award.title)
-        card.find_element(By.CLASS_NAME, "button-star").click()
+        click_element(driver, wait, card.find_element(By.CLASS_NAME, "button-star"))
         modal = wait.until(
             EC.visibility_of_element_located((By.ID, f"star-award-{test_award.pk}"))
         )
-        modal.find_element(By.CLASS_NAME, "star-confirm-button").click()
-        wait.until(EC.url_to_be(f"{BASE_URL}/award/"))
-
-        card = award_card(wait, test_award.title)
+        click_element(driver, wait, modal.find_element(By.CLASS_NAME, "star-confirm-button"))
+        card = award_card_with_star_state(wait, test_award.title, starred=True, count=1)
         star_button = card.find_element(By.CLASS_NAME, "button-star")
-        wait.until(lambda _: "is-starred" in star_button.get_attribute("class"))
         assert card.find_element(By.CLASS_NAME, "star-count").text == "1"
 
-        star_button.click()
+        click_element(driver, wait, star_button)
         modal = wait.until(
             EC.visibility_of_element_located((By.ID, f"star-award-{test_award.pk}"))
         )
-        modal.find_element(By.CLASS_NAME, "star-confirm-button").click()
-        wait.until(EC.url_to_be(f"{BASE_URL}/award/"))
-
-        card = award_card(wait, test_award.title)
+        click_element(driver, wait, modal.find_element(By.CLASS_NAME, "star-confirm-button"))
+        card = award_card_with_star_state(wait, test_award.title, starred=False, count=0)
         star_button = card.find_element(By.CLASS_NAME, "button-star")
-        wait.until(lambda _: "is-starred" not in star_button.get_attribute("class"))
         assert card.find_element(By.CLASS_NAME, "star-count").text == "0"
         print("[PASS] Star dan unstar Award berhasil")
 
@@ -287,7 +319,7 @@ def main():
 
         # 6. Superuser dapat membuka form create Award dan Experience.
         login(driver, wait, "admin_test", ADMIN_PASSWORD)
-        assert "admin_test" in driver.find_element(By.CLASS_NAME, "nav-user").text
+        assert driver.find_element(By.LINK_TEXT, "admin_test").is_displayed()
 
         driver.get(f"{BASE_URL}/award/add/")
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "form.award-form")))

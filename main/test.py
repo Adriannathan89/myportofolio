@@ -112,7 +112,10 @@ class MainTest(TestCase):
         award = Award.objects.create(title="Before edit", date_received=date(2026, 9, 16))
 
         page = self.client.get(reverse("main:show_award"))
-        self.assertContains(page, f'href="{reverse("main:update_award", args=[award.pk])}"')
+        self.assertContains(page, 'id="award-grid"')
+        self.assertContains(page, "const HAS_CHANGE_AWARD = \"true\" === \"true\";")
+        self.assertContains(page, "const UPDATE_AWARD_URL =")
+        self.assertContains(page, "00000000-0000-0000-0000-000000000000")
 
         form_page = self.client.get(reverse("main:update_award", args=[award.pk]))
         self.assertTemplateUsed(form_page, "award_update_form.html")
@@ -145,7 +148,7 @@ class MainTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/json")
         payload = json.loads(response.content)
-        self.assertEqual(payload[0]["model"], "main.award")
+        self.assertEqual(payload[0]["pk"], str(Award.objects.get(title="JSON Award").pk))
         self.assertEqual(payload[0]["fields"]["title"], "JSON Award")
 
     def test_awards_json_endpoint_filters_awards_by_title(self):
@@ -165,19 +168,27 @@ class MainTest(TestCase):
 
         response = self.client.get(reverse("main:show_award"), {"title": "logic"})
 
-        self.assertContains(response, "Logic Competition")
-        self.assertNotContains(response, "Programming Contest")
+        self.assertContains(response, 'id="award-grid"')
         self.assertContains(response, 'name="title"')
         self.assertContains(response, 'value="logic"')
 
-    def test_award_page_renders_delete_popover_without_action_key_input(self):
+        api_response = self.client.get(reverse("main:get_awards_json"), {"title": "logic"})
+        self.assertEqual(
+            [item["fields"]["title"] for item in api_response.json()],
+            ["Logic Competition"],
+        )
+
+    def test_award_page_exposes_delete_popover_builder_without_action_key_input(self):
         award = Award.objects.create(title="Protected Award", date_received=date(2026, 9, 16))
 
         response = self.client.get(reverse("main:show_award"))
 
-        self.assertContains(response, f'popovertarget="delete-award-{award.id}"')
-        self.assertContains(response, 'role="dialog"')
+        self.assertContains(response, "function buildAwardDeleteModal")
+        self.assertContains(response, "award-delete-modal")
+        self.assertContains(response, "const DELETE_AWARD_URL =")
         self.assertNotContains(response, 'name="action_key"')
+        api_response = self.client.get(reverse("main:get_awards_json"))
+        self.assertIn(str(award.pk), [item["pk"] for item in api_response.json()])
 
     def test_award_form_accepts_relative_thumbnail_path(self):
         response = self.client.post(
@@ -195,14 +206,13 @@ class MainTest(TestCase):
         award = Award.objects.get(title="Local Certificate")
         self.assertEqual(award.thumbnail, "/static/img/local-certificate.jpeg")
 
-    def test_award_page_places_add_button_with_link_to_award_form(self):
+    def test_award_page_places_add_button_with_modal_form(self):
         response = self.client.get(reverse("main:show_award"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            f'href="{reverse("main:create_award")}"',
-        )
+        self.assertContains(response, 'class="add-award-button"')
+        self.assertContains(response, 'popovertarget="add-award-modal"')
+        self.assertContains(response, 'id="add-award-modal"')
         self.assertContains(response, "Add Award")
 
     def test_award_page_renders_delete_action_for_each_award(self):
@@ -214,12 +224,12 @@ class MainTest(TestCase):
 
         response = self.client.get(reverse("main:show_award"))
 
-        self.assertContains(
-            response,
-            f'action="/award/{award.id}/delete/"',
-        )
-        self.assertContains(response, 'name="csrfmiddlewaretoken"')
-        self.assertContains(response, "Delete")
+        self.assertContains(response, "const HAS_DELETE_AWARD = \"true\" === \"true\";")
+        self.assertContains(response, "function buildAwardDeleteButton")
+        self.assertContains(response, "function buildAwardDeleteModal")
+        self.assertContains(response, "const DELETE_AWARD_URL =")
+        api_response = self.client.get(reverse("main:get_awards_json"))
+        self.assertIn(str(award.pk), [item["pk"] for item in api_response.json()])
 
     def test_delete_award_removes_award_and_redirects_to_awards(self):
         award = Award.objects.create(
@@ -418,8 +428,7 @@ class MainTest(TestCase):
 
         response = self.client.get(reverse("main:show_experience"), {"title": "teaching"})
 
-        self.assertContains(response, self.experience.title)
-        self.assertNotContains(response, other_experience.title)
+        self.assertContains(response, 'id="grid"')
         self.assertContains(response, 'name="title"')
         self.assertContains(response, 'value="teaching"')
         self.assertContains(
@@ -427,10 +436,15 @@ class MainTest(TestCase):
             f'href="{reverse("main:create_experience")}"',
         )
         self.assertContains(response, "Add Experience")
-        self.assertContains(
-            response,
-            f'href="{reverse("main:update_experience", args=[self.experience.id])}"',
+        self.assertContains(response, "const HAS_CHANGE_EXPERIENCE = \"true\" === \"true\";")
+        self.assertContains(response, "const UPDATE_EXPERIENCE_URL =")
+
+        api_response = self.client.get(
+            reverse("main:get_experience_json"), {"title": "teaching"}
         )
+        result_titles = [item["fields"]["title"] for item in api_response.json()]
+        self.assertEqual(result_titles, [self.experience.title])
+        self.assertNotIn(other_experience.title, result_titles)
 
     def test_experience_start_at_is_not_set_automatically(self):
         experience = Experience.objects.create(title="Experience Without Start Date")
@@ -475,11 +489,19 @@ class MainTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "experience.html")
-        self.assertContains(response, self.experience.title)
-        self.assertContains(response, self.experience.description)
-        self.assertContains(response, "Part-Time")
-        self.assertContains(response, "Ongoing")
+        self.assertContains(response, 'id="grid"')
+        self.assertContains(response, 'const BASE_EXPERIENCE_URL = "/api/experiences/";')
         self.assertContains(response, f'href="{reverse("main:show_main")}"')
+
+        api_item = next(
+            item
+            for item in self.client.get(reverse("main:get_experience_json")).json()
+            if item["pk"] == str(self.experience.pk)
+        )
+        self.assertEqual(api_item["fields"]["title"], self.experience.title)
+        self.assertEqual(api_item["fields"]["description"], self.experience.description)
+        self.assertEqual(api_item["fields"]["category_display"], "Part-Time")
+        self.assertTrue(api_item["fields"]["is_ongoing"])
 
     def test_experience_page_renders_all_experience_fields(self):
         keyfeatures = [
@@ -493,32 +515,30 @@ class MainTest(TestCase):
             ended_at=date(2026, 8, 31),
         )
 
-        response = self.client.get(reverse("main:show_experience"))
-
-        self.assertContains(response, self.experience.get_category_display())
-        self.assertContains(response, self.experience.title)
-        self.assertContains(response, self.experience.description)
-        for keyfeature in keyfeatures:
-            self.assertContains(response, keyfeature)
-        self.assertContains(response, "Mar 2026")
-        self.assertContains(response, "Aug 2026")
-
-    def test_experience_page_renders_cards_in_alternating_timeline(self):
-        Experience.objects.create(
-            title="Second Experience",
-            description="Another experience.",
+        response = self.client.get(reverse("main:get_experience_json"))
+        api_item = next(
+            item for item in response.json() if item["pk"] == str(self.experience.pk)
         )
 
+        self.assertEqual(
+            api_item["fields"]["category_display"],
+            self.experience.get_category_display(),
+        )
+        self.assertEqual(api_item["fields"]["title"], self.experience.title)
+        self.assertEqual(api_item["fields"]["description"], self.experience.description)
+        self.assertEqual(api_item["fields"]["keyfeatures"], keyfeatures)
+        self.assertEqual(api_item["fields"]["start_at"], "2026-03-01")
+        self.assertEqual(api_item["fields"]["ended_at"], "2026-08-31")
+
+    def test_experience_page_includes_alternating_timeline_builder(self):
         response = self.client.get(reverse("main:show_experience"))
         content = response.content.decode()
 
-        self.assertContains(response, "experience-timeline")
+        self.assertContains(response, 'id="grid"')
         self.assertContains(response, "experience-timeline-item--left")
         self.assertContains(response, "experience-timeline-item--right")
-        self.assertLess(
-            content.index("experience-timeline-item--left"),
-            content.index("experience-timeline-item--right"),
-        )
+        self.assertContains(response, "gridContainer.children.length % 2 === 0")
+        self.assertIn("gridContainer.appendChild(buildExperienceCard(item))", content)
 
     def test_experience_styles_define_responsive_font_sizes(self):
         stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
@@ -539,10 +559,16 @@ class MainTest(TestCase):
         self.assertContains(response, "No experience has been added yet.")
 
     def test_completed_experience(self):
-        self.experience.ended_at = timezone.now()
+        self.experience.ended_at = timezone.now().date()
         self.experience.save()
-        response = self.client.get(reverse("main:show_experience"))
+        response = self.client.get(reverse("main:get_experience_json"))
 
         self.assertFalse(self.experience.is_ongoing)
-        self.assertContains(response, "Completed")
-        self.assertNotContains(response, "Ongoing")
+        api_item = next(
+            item for item in response.json() if item["pk"] == str(self.experience.pk)
+        )
+        self.assertFalse(api_item["fields"]["is_ongoing"])
+        self.assertEqual(
+            api_item["fields"]["ended_at"], self.experience.ended_at.isoformat()
+        )
+        self.assertEqual(Experience.objects.count(), 1)
