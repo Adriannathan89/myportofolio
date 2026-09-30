@@ -10,71 +10,215 @@
                 {% endif %}
             </div>
 
-            <form method="get" action="{% url 'main:show_experience' %}" class="award-search">
+            <form id="experience-search-form" method="get" action="{% url 'main:show_experience' %}"
+                class="award-search">
                 <label for="experience-title-search">Search experience</label>
-                <input
-                    type="search"
-                    name="title"
-                    id="experience-title-search"
-                    value="{{ title_query }}"
-                    placeholder="Search by experience title"
-                    class="award-search__input"
-                    aria-label="Search by experience title"
-                >
-                <button type="submit" class="search-button">Search</button>
+                <input type="search" name="title" id="experience-title-search" value="{{ title_query }}"
+                    placeholder="Search by experience title" class="award-search__input"
+                    aria-label="Search by experience title">
             </form>
 
-            {% if experience_list %}
-            <div class="experience-timeline">
-                {% for experience in experience_list %}
-                <div
-                    class="experience-timeline-item {% if forloop.counter|divisibleby:2 %}experience-timeline-item--right{% else %}experience-timeline-item--left{% endif %}">
-                    {% if perms.main.change_experience %}
-                    <a class="experience-card-link" href="{% url 'main:update_experience' experience.id %}">
-                    {% endif %}
-                    <article class="experience-card">
-                        {% if experience.thumbnail %}
-                        <img class="experience-thumbnail" src="{{ experience.thumbnail }}"
-                            alt="{{ experience.title }} thumbnail">
-                        {% endif %}
-                        <span class="experience-category">
-                            {{ experience.get_category_display }}
-                        </span>
-                        <h2>{{ experience.title }}</h2>
-                        <p class="experience-description">
-                            {{ experience.description }}
-                        </p>
-
-                        {% if experience.keyfeatures %}
-                        <ul class="experience-keyfeatures">
-                            {% for keyfeature in experience.keyfeatures %}
-                            <li>{{ keyfeature }}</li>
-                            {% endfor %}
-                        </ul>
-                        {% endif %}
-
-                        {% if experience.is_ongoing %}
-                        <p class="experience-status">
-                            Ongoing: {{ experience.start_at|date:"M Y" }} - Present
-                        </p>
-                        {% else %}
-                        <p class="experience-status">
-                            Completed: {{ experience.start_at|date:"M Y" }} - {{ experience.ended_at|date:"M Y" }}
-                        </p>
-                        {% endif %}
-                    </article>
-                    {% if perms.main.change_experience %}
-                    </a>
-                    {% endif %}
-                </div>
-                {% endfor %}
+            <!-- Loading State -->
+            <div id="loading" class="empty-state-hidden">
+                <p>Loading...</p>
             </div>
-            {% else %}
-            <p class="empty-state">
-                No experience has been added yet.
-            </p>
-            {% endif %}
+
+            <!-- Error State -->
+            <div id="error" class="empty-state-hidden">
+                <p>Failed to load experience. Please try again later.</p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty" class="empty-state-hidden">
+                <p>No experience has been added yet.</p>
+            </div>
+
+            <div id="grid" class="experience-timeline">
+            </div>
         </div>
     </section>
 </main>
+
+<script>
+    const BASE_EXPERIENCE_URL = "{% url 'main:get_experience_json' %}";
+    const UPDATE_EXPERIENCE_URL = "{% url 'main:update_experience' '00000000-0000-0000-0000-000000000000' %}";
+    const HAS_CHANGE_EXPERIENCE = "{{ perms.main.change_experience|yesno:'true,false' }}" === "true";
+    const SEARCH_DEBOUNCE_DELAY = 300;
+    let experienceAbortController;
+    let searchDebounceTimeout;
+
+    const loadingState = document.getElementById("loading");
+    const errorState = document.getElementById("error");
+    const emptyState = document.getElementById("empty");
+    const gridContainer = document.getElementById("grid");
+    const searchForm = document.getElementById("experience-search-form");
+    const searchInput = document.getElementById("experience-title-search");
+
+    function displayPageSection({ showLoading = false, showError = false, showEmpty = false, showGrid = false }) {
+        loadingState.classList.toggle("empty-state-hidden", !showLoading);
+        errorState.classList.toggle("empty-state-hidden", !showError);
+        emptyState.classList.toggle("empty-state-hidden", !showEmpty);
+        gridContainer.classList.toggle("empty-state-hidden", !showGrid);
+    }
+
+    function buildExperienceCard(item) {
+        const experience = item.fields;
+        const experienceId = item.pk;
+        const timelineItem = document.createElement("div");
+        const cardElement = document.createElement("article");
+        const categoryElement = document.createElement("span");
+        const titleElement = document.createElement("h2");
+        const descriptionElement = document.createElement("p");
+        const startDate = formatExperienceDate(experience.start_at);
+
+        timelineItem.className = "experience-timeline-item";
+        timelineItem.classList.add(
+            gridContainer.children.length % 2 === 0
+                ? "experience-timeline-item--left"
+                : "experience-timeline-item--right"
+        );
+
+        cardElement.className = "experience-card";
+        categoryElement.className = "experience-category";
+        categoryElement.textContent = experience.category_display || "";
+        titleElement.textContent = experience.title || "";
+        descriptionElement.className = "experience-description";
+        descriptionElement.textContent = experience.description || "";
+
+        if (experience.thumbnail) {
+            const imageElement = document.createElement("img");
+            imageElement.className = "experience-thumbnail";
+            imageElement.src = experience.thumbnail;
+            imageElement.alt = `${experience.title || "Experience"} thumbnail`;
+            cardElement.appendChild(imageElement);
+        }
+
+        cardElement.append(categoryElement, titleElement, descriptionElement);
+
+        if (Array.isArray(experience.keyfeatures) && experience.keyfeatures.length > 0) {
+            const featuresList = document.createElement("ul");
+            featuresList.className = "experience-keyfeatures";
+
+            experience.keyfeatures.forEach((keyfeature) => {
+                const featureElement = document.createElement("li");
+                featureElement.textContent = String(keyfeature);
+                featuresList.appendChild(featureElement);
+            });
+
+            cardElement.appendChild(featuresList);
+        }
+
+        const statusElement = document.createElement("p");
+        statusElement.className = "experience-status";
+        statusElement.textContent = experience.is_ongoing
+            ? `Ongoing: ${startDate} - Present`
+            : `Completed: ${startDate} - ${formatExperienceDate(experience.ended_at)}`;
+        cardElement.appendChild(statusElement);
+
+        if (HAS_CHANGE_EXPERIENCE) {
+            const updateLink = document.createElement("a");
+            updateLink.className = "experience-card-link";
+            updateLink.href = UPDATE_EXPERIENCE_URL.replace(
+                "00000000-0000-0000-0000-000000000000",
+                encodeURIComponent(experienceId)
+            );
+            updateLink.appendChild(cardElement);
+            timelineItem.appendChild(updateLink);
+        } else {
+            timelineItem.appendChild(cardElement);
+        }
+
+        return timelineItem;
+    }
+
+    function formatExperienceDate(dateValue) {
+        if (!dateValue) {
+            return "";
+        }
+
+        const [year, month, day] = dateValue.split("-").map(Number);
+        const date = new Date(year, month - 1, day);
+        return new Intl.DateTimeFormat("en", { month: "short", year: "numeric" }).format(date);
+    }
+
+    async function loadExperiences(title = "") {
+        if (experienceAbortController) {
+            experienceAbortController.abort();
+        }
+
+        const requestController = new AbortController();
+        experienceAbortController = requestController;
+
+        const requestUrl = new URL(BASE_EXPERIENCE_URL, window.location.origin);
+        requestUrl.searchParams.set("title", title);
+
+        try {
+            displayPageSection({ showLoading: true });
+
+            const response = await fetch(requestUrl, {
+                headers: { Accept: "application/json" },
+                signal: requestController.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Experience request failed with status ${response.status}`);
+            }
+
+            const experiences = await response.json();
+            if (!Array.isArray(experiences)) {
+                throw new Error("Experience response must be a list.");
+            }
+            if (requestController.signal.aborted) {
+                return;
+            }
+
+            gridContainer.replaceChildren();
+            experiences.forEach((item) => {
+                gridContainer.appendChild(buildExperienceCard(item));
+            });
+
+            displayPageSection({
+                showEmpty: experiences.length === 0,
+                showGrid: experiences.length > 0,
+            });
+        } catch (error) {
+            if (error.name === "AbortError" || requestController.signal.aborted) {
+                return;
+            }
+
+            displayPageSection({ showError: true });
+        }
+    }
+
+    function searchExperiences() {
+        const title = searchInput.value.trim();
+        const nextUrl = new URL(window.location.href);
+
+        if (title) {
+            nextUrl.searchParams.set("title", title);
+        } else {
+            nextUrl.searchParams.delete("title");
+        }
+
+        window.history.replaceState({}, "", nextUrl);
+        loadExperiences(title);
+    }
+
+    searchInput.addEventListener("input", () => {
+        clearTimeout(searchDebounceTimeout);
+        if (experienceAbortController) {
+            experienceAbortController.abort();
+        }
+
+        searchDebounceTimeout = setTimeout(searchExperiences, SEARCH_DEBOUNCE_DELAY);
+    });
+
+    searchForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        clearTimeout(searchDebounceTimeout);
+        searchExperiences();
+    });
+
+    loadExperiences(searchInput.value.trim());
+</script>
 {% endblock content %}
