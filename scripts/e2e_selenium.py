@@ -3,7 +3,6 @@
 
 import os
 import sys
-import time
 import uuid
 from datetime import date
 from pathlib import Path
@@ -24,21 +23,22 @@ load_dotenv(PROJECT_ROOT / ".env")
 USER_PASSWORD = os.getenv("E2E_USER_PASSWORD")
 ADMIN_PASSWORD = os.getenv("E2E_ADMIN_PASSWORD")
 BASE_URL = os.getenv("E2E_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+XSS_ONLY = "--xss-only" in sys.argv
 XSS_STORAGE_KEY = "portfolioXssTriggered"
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 XSS_PAYLOAD = (
     '<img src="/__missing_xss_e2e_image__.png" '
     f'onerror="localStorage.setItem(\'{XSS_STORAGE_KEY}\', \'executed\')">'
 )
 
 parsed_base_url = urlsplit(BASE_URL)
-if parsed_base_url.scheme not in {"http", "https"} or parsed_base_url.hostname not in {
-    "localhost",
-    "127.0.0.1",
-    "::1",
-}:
+if (
+    parsed_base_url.scheme not in {"http", "https"}
+    or parsed_base_url.hostname not in LOCAL_HOSTS
+):
     sys.exit("E2E_BASE_URL harus menunjuk ke aplikasi lokal (localhost/loopback).")
 
-if not USER_PASSWORD or not ADMIN_PASSWORD:
+if not XSS_ONLY and (not USER_PASSWORD or not ADMIN_PASSWORD):
     sys.exit("E2E_USER_PASSWORD dan E2E_ADMIN_PASSWORD belum diisi di berkas .env.")
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "myportofolio.settings")
@@ -47,8 +47,16 @@ import django  # noqa: E402
 
 django.setup()
 
+from django.conf import settings  # noqa: E402
 from django.contrib.auth.models import User  # noqa: E402
 from main.models import Award, Experience  # noqa: E402
+
+database = settings.DATABASES["default"]
+if not (
+    database["ENGINE"].endswith("sqlite3")
+    or database.get("HOST", "").lower() in LOCAL_HOSTS
+):
+    sys.exit("Database E2E harus lokal (SQLite atau server database loopback).")
 
 
 def setup_users():
@@ -146,17 +154,20 @@ def assert_xss_payload_is_text(driver, wait, page_path, card_selector, body_sele
 
 
 def main():
-    setup_users()
-    test_award = Award.objects.create(
-        title=f"E2E Selenium Award {uuid.uuid4().hex[:10]}",
-        description="Temporary award created by the Selenium E2E test.",
-        issuer="E2E test",
-        date_received=date.today(),
-    )
-    test_experience = Experience.objects.create(
-        title=f"E2E Selenium Experience {uuid.uuid4().hex[:10]}",
-        category="freelance",
-    )
+    test_award = None
+    test_experience = None
+    if not XSS_ONLY:
+        setup_users()
+        test_award = Award.objects.create(
+            title=f"E2E Selenium Award {uuid.uuid4().hex[:10]}",
+            description="Temporary award created by the Selenium E2E test.",
+            issuer="E2E test",
+            date_received=date.today(),
+        )
+        test_experience = Experience.objects.create(
+            title=f"E2E Selenium Experience {uuid.uuid4().hex[:10]}",
+            category="freelance",
+        )
     # Seed legacy-style data directly so the browser verifies output escaping
     # even for records that predate server-side form validation.
     xss_award = Award.objects.create(
@@ -204,6 +215,23 @@ def main():
         assert csrf.get_attribute("value")
         assert driver.get_cookie("csrftoken")
         print("[PASS] CSRF token dan cookie terverifikasi")
+
+        # Stored XSS checks run as an anonymous visitor before any login.
+        assert_xss_payload_is_text(
+            driver, wait, "/award/", ".award-card", ".award-description"
+        )
+        print("[PASS] Stored XSS Award tampil sebagai teks untuk pengunjung anonim")
+        assert_xss_payload_is_text(
+            driver,
+            wait,
+            "/experience/",
+            ".experience-timeline-item",
+            ".experience-description",
+        )
+        print("[PASS] Stored XSS Experience tampil sebagai teks untuk pengunjung anonim")
+        if XSS_ONLY:
+            print("\nPengujian Selenium XSS berhasil!")
+            return
 
         # 2. Login akun biasa dan pastikan cookie sesi serta last_login terpasang.
         login(driver, wait, "burhan_test", USER_PASSWORD)
@@ -257,21 +285,7 @@ def main():
         assert cookie_last_login is None or cookie_last_login["value"] == ""
         print("[PASS] Logout dan pembersihan cookie berhasil")
 
-        # 6. Anonymous visitors see legacy XSS payloads as literal text.
-        assert_xss_payload_is_text(
-            driver, wait, "/award/", ".award-card", ".award-description"
-        )
-        print("[PASS] Stored XSS Award tampil sebagai teks untuk pengunjung anonim")
-        assert_xss_payload_is_text(
-            driver,
-            wait,
-            "/experience/",
-            ".experience-timeline-item",
-            ".experience-description",
-        )
-        print("[PASS] Stored XSS Experience tampil sebagai teks untuk pengunjung anonim")
-
-        # 7. Superuser dapat membuka form create Award dan Experience.
+        # 6. Superuser dapat membuka form create Award dan Experience.
         login(driver, wait, "admin_test", ADMIN_PASSWORD)
         assert "admin_test" in driver.find_element(By.CLASS_NAME, "nav-user").text
 
@@ -290,9 +304,11 @@ def main():
         print("\nSemua pengujian E2E berhasil!")
     finally:
         if driver is not None:
-        driver.quit()
-        test_award.delete()
-        test_experience.delete()
+            driver.quit()
+        if test_award is not None:
+            test_award.delete()
+        if test_experience is not None:
+            test_experience.delete()
         xss_award.delete()
         xss_experience.delete()
 

@@ -187,6 +187,14 @@ Selenium menguji CSRF dan login/logout, larangan create/delete Award dan create/
 
 Skrip membuat atau memperbarui akun lokal `burhan_test` dan `admin_test`, membuat data Award dan Experience sementara, lalu menghapus data sementara itu setelah pengujian. Tanpa `--headless`, Chrome dibuka dengan jendela biasa.
 
+Untuk menjalankan hanya pemeriksaan stored XSS di Award dan Experience sebagai pengunjung anonim:
+
+```bash
+python scripts/e2e_selenium.py --headless --xss-only
+```
+
+Pemeriksaan ini menyimpan payload uji sementara langsung ke database agar meniru data lama yang melewati validasi form, lalu memastikan browser menampilkannya sebagai teks dan tidak membuat elemen gambar dari payload. Skrip hanya menerima `E2E_BASE_URL` di localhost/loopback dan database lokal (SQLite atau database di loopback).
+
 ### Menjalankan dengan Konfigurasi Produksi (PostgreSQL)
 
 Buat file `.env` berisi variabel berikut sebelum menjalankan dengan `PRODUCTION=True`:
