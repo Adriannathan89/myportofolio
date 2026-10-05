@@ -198,6 +198,32 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
         self.wait.until(lambda driver: len(driver.find_elements(By.CSS_SELECTOR, ".experience-card")) == 2)
         self.assertFalse(self.driver.find_element(By.ID, "error").is_displayed())
 
+    def test_experience_edit_modal_delete_targets_selected_item_and_requires_permission(self):
+        other = Experience.objects.create(title="Other experience")
+        self.visit("/experience/", self.editor)
+        self.driver.find_element(By.CSS_SELECTOR, f'button[data-experience-id="{self.experience.pk}"]').click()
+        self.wait.until(lambda driver: driver.find_element(By.ID, "id_update-title").is_displayed())
+        self.assertFalse(self.driver.find_elements(By.ID, "experience-update-delete"))
+
+        self.visit("/experience/", self.admin)
+        for item in (self.experience, other):
+            self.driver.find_element(By.CSS_SELECTOR, f'button[data-experience-id="{item.pk}"]').click()
+            self.wait.until(lambda driver: driver.find_element(By.ID, "id_update-title").is_displayed())
+            delete_button = self.driver.find_element(By.ID, "experience-update-delete")
+            self.assertEqual(delete_button.text, "Delete")
+            delete_button.click()
+            self.wait.until(lambda driver: driver.execute_script(
+                'return document.getElementById("delete-experience-modal").matches(":popover-open")'))
+            self.assertFalse(self.driver.execute_script('return document.getElementById("update-experience-modal").matches(":popover-open")'))
+            self.assertIn(item.title, self.driver.find_element(By.ID, "delete-experience-modal").text)
+            if item.pk == self.experience.pk:
+                self.driver.find_element(By.CSS_SELECTOR, '#delete-experience-modal .cancel-button').click()
+                self.assertTrue(Experience.objects.filter(pk=self.experience.pk).exists())
+            else:
+                self.driver.find_element(By.CSS_SELECTOR, '#delete-experience-modal button[type="submit"]').click()
+                self.wait.until(lambda driver: len(driver.find_elements(By.CSS_SELECTOR, ".experience-card")) == 1)
+                self.assertFalse(Experience.objects.filter(pk=other.pk).exists())
+                self.assertTrue(Experience.objects.filter(pk=self.experience.pk).exists())
 
     def test_award_edit_modal_delete_targets_selected_award_and_requires_permission(self):
         other = Award.objects.create(title="Other prize", date_received="2026-09-02")
