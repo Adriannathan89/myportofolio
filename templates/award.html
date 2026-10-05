@@ -124,9 +124,6 @@
         const actions = document.createElement("div");
         actions.className = "award-actions";
         actions.appendChild(buildAwardStarControl(award, awardId));
-        if (HAS_DELETE_AWARD) {
-            actions.appendChild(buildAwardDeleteButton(award, awardId));
-        }
         card.appendChild(actions);
 
         if (IS_AUTHENTICATED) {
