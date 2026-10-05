@@ -199,6 +199,33 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
         self.assertFalse(self.driver.find_element(By.ID, "error").is_displayed())
 
 
+    def test_award_edit_modal_delete_targets_selected_award_and_requires_permission(self):
+        other = Award.objects.create(title="Other prize", date_received="2026-09-02")
+        self.visit("/award/", self.editor)
+        self.driver.find_element(By.CSS_SELECTOR, '.award-card-edit-link[aria-label="Edit Research prize"]').click()
+        self.wait.until(lambda driver: driver.find_element(By.ID, "id_update-title").is_displayed())
+        self.assertFalse(self.driver.find_elements(By.ID, "award-update-delete"))
+
+        self.visit("/award/", self.admin)
+        for title, item_id in (("Research prize", self.award.pk), ("Other prize", other.pk)):
+            self.driver.find_element(By.CSS_SELECTOR, f'.award-card-edit-link[aria-label="Edit {title}"]').click()
+            self.wait.until(lambda driver: driver.find_element(By.ID, "id_update-title").is_displayed())
+            delete_button = self.driver.find_element(By.ID, "award-update-delete")
+            self.assertEqual(delete_button.text, "Delete")
+            delete_button.click()
+            modal_id = f"delete-award-{item_id}"
+            self.wait.until(lambda driver: driver.execute_script(
+                'return document.getElementById(arguments[0]).matches(":popover-open")', modal_id))
+            self.assertFalse(self.driver.execute_script('return document.getElementById("update-award-modal").matches(":popover-open")'))
+            self.assertIn(title, self.driver.find_element(By.ID, modal_id).text)
+            if item_id == self.award.pk:
+                self.driver.find_element(By.CSS_SELECTOR, f'#{modal_id} .cancel-button').click()
+                self.assertTrue(Award.objects.filter(pk=self.award.pk).exists())
+            else:
+                self.driver.find_element(By.CSS_SELECTOR, f'#{modal_id} button[type="submit"]').click()
+                self.wait.until(lambda driver: len(driver.find_elements(By.CSS_SELECTOR, ".award-card")) == 1)
+                self.assertFalse(Award.objects.filter(pk=other.pk).exists())
+                self.assertTrue(Award.objects.filter(pk=self.award.pk).exists())
 
     def test_award_add_without_reload_and_server_validation_toast(self):
         self.visit("/award/", self.admin)
