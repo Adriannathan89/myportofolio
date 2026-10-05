@@ -17,7 +17,7 @@ Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama m
 - **Profile (`/`)** — nama, bio, program studi, NPM, foto profil, dan tautan sosial media.
 - **User Profile (`/profile/`)** — halaman akun pribadi untuk mengganti username dan, bila perlu, password.
 - **Projects (`/#projects`)** — project yang ditampilkan sebagai card berisi deskripsi, tags teknologi, serta tautan GitHub atau npm.
-- **Experience (`/experience/`)** — timeline pengalaman dari model `Experience`, termasuk kategori, periode, deskripsi, dan key features. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan experience, serta pembaruan atau penghapusan melalui klik pada kartu experience.
+- **Experience (`/experience/`)** — timeline pengalaman dari model `Experience`, termasuk kategori, periode, deskripsi, dan key features. Data dimuat melalui AJAX, pencarian judul memakai debounce, dan tambah/edit tersedia dalam modal tanpa reload.
 - **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan, pengubahan melalui klik pada kartu, dan penghapusan award.
 - **Awards API (`/api/awards/`)** — data award dalam format JSON dan filter judul melalui query `?title=`.
 
@@ -47,15 +47,37 @@ Superuser dapat menambah, mengubah, dan menghapus data. Akun dalam group `Editor
 | Fitur | URL | Keterangan |
 | --- | --- | --- |
 | Daftar experience | `/experience/` | Timeline experience dan pencarian judul dengan `?title=`. |
-| Tambah experience | `/experience/add/` | Memerlukan izin `main.add_experience`. |
-| Ubah experience | `/experience/<uuid>/` | Memerlukan izin `main.change_experience`; form terisi data saat ini. |
+| Tambah experience via AJAX | `/experience/add-ajax/` | POST dari modal; memerlukan izin `main.add_experience`. |
+| Ubah experience via AJAX | `/experience/<uuid>/update-ajax/` | POST dari modal; memerlukan izin `main.change_experience`. |
 | Hapus experience | `/experience/<uuid>/delete/` | Memerlukan izin `main.delete_experience`; menerima `POST` dari modal konfirmasi. |
 | Daftar award | `/award/` | Daftar award, pencarian judul dengan `?title=`, dan jumlah star; akun login dapat memberi atau membatalkan star. |
-| Tambah award | `/award/add/` | Memerlukan izin `main.add_award`. |
-| Ubah award | `/award/<uuid>/` | Memerlukan izin `main.change_award`; klik kartu award untuk membuka form yang sudah terisi. |
+| Tambah award via AJAX | `/award/add-ajax/` | POST dari modal; memerlukan izin `main.add_award`. |
+| Ubah award via AJAX | `/award/<uuid>/update-ajax/` | POST dari modal; memerlukan izin `main.change_award`. |
 | Hapus award | `/award/<uuid>/delete/` | Memerlukan izin `main.delete_award`; menerima `POST` dari modal konfirmasi. |
 
-Pada halaman Awards, Editor dan superuser dapat mengklik **area mana pun pada kartu award** untuk membuka form edit yang sudah terisi. Judul kartu tetap berupa teks hitam. Setelah mengubah data, pilih **Save** untuk menyimpan atau **Cancel** untuk kembali ke daftar. Tombol **Star/Unstar** tetap menjalankan interaksinya sendiri; tombol **Delete** hanya terlihat oleh superuser dan tidak membuka form edit. Pengunjung dan akun biasa dapat melihat kartu, tetapi tidak mendapat tautan edit.
+Pada halaman Awards dan Experience, Editor dan superuser dapat mengklik kartu untuk membuka modal edit yang sudah terisi. Penambahan data tersedia untuk superuser melalui tombol Add. Setelah penyimpanan berhasil, modal ditutup dan daftar diperbarui lewat AJAX dengan filter pencarian saat ini. Kesalahan validasi ditampilkan melalui toast dan isian modal dipertahankan agar dapat diperbaiki. Tombol Star/Unstar dan Delete pada Award tetap menjalankan interaksinya sendiri. Rute form lama masih tersedia dengan perilaku sebelumnya; rute tambah/edit Award lama hanya menerima POST.
+
+### Assignment 5: AJAX dan modal
+
+- Halaman daftar merender kerangka; `fetch()` mengambil data dari `/api/awards/` dan `/api/experiences/`.
+- Respons JSON disusun manual dengan `JsonResponse`. Award menyertakan `star_count` dan `is_starred` untuk pengguna saat ini; pengunjung mendapatkan `is_starred: false`.
+- Pencarian judul pada kedua halaman menggunakan debounce 300 ms dan membatalkan request sebelumnya.
+- Kedua halaman menampilkan loading, empty, dan error state. Kegagalan memuat data juga menampilkan toast.
+- Form tambah/edit berada dalam modal. Endpoint tambah mengembalikan 201, validasi gagal 400, dan pengguna tanpa izin 403; update berhasil mengembalikan 200. Izin diperiksa dalam view dengan permission Django.
+- POST menyertakan CSRF, menggunakan ModelForm, dan memperbarui daftar tanpa reload. Toast menampilkan hasil berhasil, kegagalan jaringan, serta pesan validasi server.
+- Data dari JSON dipasang lewat `textContent`, atribut DOM, atau `.value`; input teks dibersihkan memakai `strip_tags` pada metode `clean_<field>` ModelForm.
+- Pengunjung dan pengguna biasa dapat membaca data; Editor hanya mengedit; superuser dapat menambah dan mengedit.
+
+Implementasi diuji dengan siklus TDD: tes endpoint dan browser ditulis serta dijalankan sebelum fitur dilengkapi, kemudian dijalankan ulang sampai lolos. Jalankan pemeriksaan berikut dari root project:
+
+```bash
+env/bin/python manage.py test
+env/bin/python scripts/check_ajax_browser.py
+env/bin/python manage.py check
+env/bin/python manage.py runserver
+```
+
+Tes browser menggunakan database tes sementara, Selenium, dan Chrome/Chromedriver lokal (termasuk cache Selenium). Jika diperlukan, set `CHROME_BINARY` dan `CHROMEDRIVER_BINARY`. Tes mencakup seluruh role, modal tambah/edit Experience, tambah Award, validasi, retry jaringan, debounce, state pemuatan, toast, serta rendering aman data HTML lama. Kegagalan request awal dan kegagalan refresh setelah penyimpanan berhasil juga diuji, termasuk retry daftar tanpa mengirim POST ulang.
 
 Untuk memberikan role Editor, jalankan `python manage.py migrate`, lalu masuk ke `/admin/` memakai akun superuser. Buka **Authentication and Authorization → Users**, pilih akun yang sudah ada, dan tambahkan group **Editor** pada bagian **Groups**. Editor mengelola konten melalui halaman portfolio, bukan melalui Django admin; tidak perlu mengaktifkan `Staff status` atau `Superuser status` pada akunnya.
 
