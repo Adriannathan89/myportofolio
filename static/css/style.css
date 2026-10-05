@@ -1169,6 +1169,10 @@ h1,
     inset: 0;
     z-index: 1;
     border-radius: inherit;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
 }
 
 .award-card-edit-link:focus-visible {

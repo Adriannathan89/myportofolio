@@ -5,7 +5,7 @@ from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -115,6 +115,7 @@ def show_award(request):
         "name": "Adrian Nathanael Setiawan",
         "title_query": title_query,
         "form": AwardForm(),
+        "update_form": AwardForm(prefix="update"),
     }
     return render(request, "award.html", context)
 
@@ -186,6 +187,7 @@ def get_experience_json(request):
 
 
 # ---------------------------------- Award Form Model CRUD  ----------------------------------
+@require_POST
 @login_required(login_url="main:login")
 def create_award(request):
     form = AwardForm(request.POST if request.method == "POST" else None)
@@ -219,6 +221,23 @@ def create_award_ajax(request):
     else:
         return JsonResponse({"errors": form.errors}, status=400)
 
+@require_POST
+def update_award_ajax(request, award_id):
+    if not request.user.has_perm("main.change_award"):
+        return JsonResponse({"message": "You do not have permission to update awards."}, status=403)
+
+    award = Award.objects.filter(pk=award_id).first()
+    if award is None:
+        return JsonResponse({"message": "Award not found."}, status=404)
+
+    form = AwardForm(request.POST, instance=award)
+    if not form.is_valid():
+        return JsonResponse({"errors": form.errors}, status=400)
+
+    form.save()
+    return JsonResponse({"message": "Award updated successfully.", "pk": str(award.pk)})
+
+@require_POST
 @login_required(login_url="main:login")
 def update_award(request, award_id):
     if not request.user.has_perm("main.change_award"):
@@ -231,17 +250,6 @@ def update_award(request, award_id):
         form.save()
         messages.success(request, "Award updated successfully.")
         return redirect("main:show_award")
-
-    return render(
-        request,
-        "award_update_form.html",
-        {
-            "name": "Adrian Nathanael Setiawan",
-            "form": form,
-            "award": award,
-        },
-    )
-
 
 @login_required(login_url="main:login")
 @require_POST

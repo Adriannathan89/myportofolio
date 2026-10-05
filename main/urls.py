@@ -18,6 +18,7 @@ from main.views import (
     register,
     toggle_star_award,
     create_award_ajax,
+    update_award_ajax,
 )
 
 app_name = "main"
@@ -34,6 +35,7 @@ urlpatterns = [
     path("award/<uuid:award_id>/delete/", delete_award, name="delete_award"),
     path("award/<uuid:award_id>/toggle-star/", toggle_star_award, name="toggle_star_award"),
     path("award/add-ajax/", create_award_ajax, name="create_award_ajax"),
+    path("award/<uuid:award_id>/update-ajax/", update_award_ajax, name="update_award_ajax"),
     path("api/awards/", get_awards_json, name="get_awards_json"),
     path("api/experiences/", get_experience_json, name="get_experience_json"),
     path("register/", register, name="register"),

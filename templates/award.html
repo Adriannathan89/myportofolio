@@ -36,12 +36,15 @@
 </main>
 
 {% if perms.main.add_award %}
-{% include "components/award_from_modal.html" %}
+{% include "components/award_form_modal.html" %}
+{% endif %}
+{% if perms.main.change_award %}
+{% include "components/award_update_form_modal.html" %}
 {% endif %}
 
 <script>
     const BASE_AWARD_URL = "{% url 'main:get_awards_json' %}";
-    const UPDATE_AWARD_URL = "{% url 'main:update_award' '00000000-0000-0000-0000-000000000000' %}";
+    const UPDATE_AWARD_URL = "{% url 'main:update_award_ajax' '00000000-0000-0000-0000-000000000000' %}";
     const DELETE_AWARD_URL = "{% url 'main:delete_award' '00000000-0000-0000-0000-000000000000' %}";
     const TOGGLE_STAR_AWARD_URL = "{% url 'main:toggle_star_award' '00000000-0000-0000-0000-000000000000' %}";
     const LOGIN_URL = "{% url 'main:login' %}";
@@ -75,11 +78,12 @@
         card.className = `award-card${HAS_CHANGE_AWARD ? " award-card--editable" : ""}`;
 
         if (HAS_CHANGE_AWARD) {
-            const editLink = document.createElement("a");
-            editLink.className = "award-card-edit-link";
-            editLink.href = replaceAwardId(UPDATE_AWARD_URL, awardId);
-            editLink.setAttribute("aria-label", `Edit ${award.title || "award"}`);
-            card.appendChild(editLink);
+            const editModal = document.createElement("button");
+            editModal.type = "button";
+            editModal.className = "award-card-edit-link";
+            editModal.setAttribute("aria-label", `Edit ${award.title || "award"}`);
+            editModal.addEventListener("click", () => openAwardUpdateModal(item));
+            card.appendChild(editModal);
         }
 
         const heading = document.createElement("div");
@@ -421,6 +425,62 @@
 
     const CREATE_AWARD_ENDPOINT = "{% url 'main:create_award_ajax' %}";
     const awardForm = document.getElementById("award-form");
+    const awardUpdateForm = document.getElementById("award-update-form");
+    const awardUpdateModal = document.getElementById("update-award-modal");
+
+    function openAwardUpdateModal(item) {
+        if (!awardUpdateForm || !awardUpdateModal) {
+            return;
+        }
+
+        awardUpdateForm.reset();
+        awardUpdateForm.action = replaceAwardId(UPDATE_AWARD_URL, item.pk);
+        for (const field of ["title", "description", "thumbnail", "issuer", "date_received"]) {
+            awardUpdateForm.elements.namedItem(`update-${field}`).value = item.fields[field] || "";
+        }
+        awardUpdateModal.showPopover();
+        awardUpdateForm.elements.namedItem("update-title").focus();
+    }
+
+    async function updateAward(event) {
+        event.preventDefault();
+        const submitButton = awardUpdateForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+
+        const formData = new FormData();
+        for (const field of ["title", "description", "thumbnail", "issuer", "date_received"]) {
+            formData.set(field, awardUpdateForm.elements.namedItem(`update-${field}`).value);
+        }
+        formData.set("csrfmiddlewaretoken", awardUpdateForm.elements.namedItem("csrfmiddlewaretoken").value);
+
+        try {
+            const response = await fetch(awardUpdateForm.action, {
+                method: "POST",
+                body: formData,
+                headers: { Accept: "application/json" },
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const errors = result.errors
+                    ? Object.values(result.errors).flat().map((error) => String(error?.message || error))
+                    : [result.message || `Something went wrong (status ${response.status}).`];
+                showToast("Failed to update award", errors.join(" "), "error");
+                return;
+            }
+
+            awardUpdateModal.hidePopover();
+            showToast("Success", result.message || "Award updated successfully!", "success");
+            await loadAwards(awardSearchInput.value.trim());
+        } catch (error) {
+            showToast("Failed to update award", "Could not reach the server. Please try again.", "error");
+        } finally {
+            submitButton.disabled = false;
+        }
+    }
+
+    if (awardUpdateForm) {
+        awardUpdateForm.addEventListener("submit", updateAward);
+    }
 
     function getCookie(name) {
         let cookieValue = null;
