@@ -74,10 +74,10 @@ class MainTest(TestCase):
         self.assertIn("date(2023, 9, 1)", script)
 
     def test_award_form_displays_all_fields(self):
-        response = self.client.get(reverse("main:create_award"))
+        response = self.client.get(reverse("main:show_award"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "award_form.html")
+        self.assertTemplateUsed(response, "components/award_form_modal.html")
         for field_name in ("title", "description", "thumbnail", "issuer", "date_received"):
             self.assertContains(response, f'name="{field_name}"')
         self.assertContains(response, 'type="date"')
@@ -108,7 +108,7 @@ class MainTest(TestCase):
         self.assertEqual(award.description, "Won first place.")
         self.assertEqual(award.date_received, date(2026, 9, 16))
 
-    def test_award_card_links_to_prefilled_update_form(self):
+    def test_award_modal_uses_json_data_and_legacy_edit_page_rejects_get(self):
         award = Award.objects.create(title="Before edit", date_received=date(2026, 9, 16))
 
         page = self.client.get(reverse("main:show_award"))
@@ -118,9 +118,11 @@ class MainTest(TestCase):
         self.assertContains(page, "00000000-0000-0000-0000-000000000000")
 
         form_page = self.client.get(reverse("main:update_award", args=[award.pk]))
-        self.assertTemplateUsed(form_page, "award_update_form.html")
-        self.assertContains(form_page, 'value="Before edit"')
-        self.assertContains(form_page, 'value="2026-09-16"')
+        self.assertEqual(form_page.status_code, 405)
+        self.assertTemplateUsed(page, "components/award_update_form_modal.html")
+        item = self.client.get(reverse("main:get_awards_json")).json()[0]
+        self.assertEqual(item["fields"]["title"], "Before edit")
+        self.assertEqual(item["fields"]["date_received"], "2026-09-16")
 
     def test_update_award_saves_changes(self):
         award = Award.objects.create(title="Before edit", date_received=date(2026, 9, 16))
@@ -420,7 +422,7 @@ class MainTest(TestCase):
         self.assertEqual(response.status_code, 405)
         self.assertTrue(Experience.objects.filter(pk=self.experience.id).exists())
 
-    def test_experience_page_filters_by_title_and_links_to_create_and_update_forms(self):
+    def test_experience_page_filters_by_title_and_includes_modal_forms(self):
         other_experience = Experience.objects.create(
             title="Research Assistant",
             description="Investigated software quality.",
@@ -431,10 +433,7 @@ class MainTest(TestCase):
         self.assertContains(response, 'id="grid"')
         self.assertContains(response, 'name="title"')
         self.assertContains(response, 'value="teaching"')
-        self.assertContains(
-            response,
-            f'href="{reverse("main:create_experience")}"',
-        )
+        self.assertTemplateUsed(response, "components/experience_form_modal.html")
         self.assertContains(response, "Add Experience")
         self.assertContains(response, "const HAS_CHANGE_EXPERIENCE = \"true\" === \"true\";")
         self.assertContains(response, "const UPDATE_EXPERIENCE_URL =")

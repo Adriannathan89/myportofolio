@@ -1,0 +1,50 @@
+<div id="update-award-modal"
+     class="project-form-modal"
+     popover="auto"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="update-award-modal-title">
+    <button type="button"
+            class="project-form-modal__backdrop"
+            popovertarget="update-award-modal"
+            popovertargetaction="hide"
+            aria-label="Close update award form"></button>
+
+    <div class="project-form-modal__content">
+        <button type="button"
+                class="project-form-modal__close"
+                popovertarget="update-award-modal"
+                popovertargetaction="hide"
+                aria-label="Close update award form">×</button>
+
+        <h2 id="update-award-modal-title">Update Award</h2>
+        <form id="award-update-form"
+              method="post"
+              class="project-form">
+            {% csrf_token %}
+            {% for field in update_form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <p class="form-error">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+            <div class="project-form-modal__actions">
+                {% if perms.main.delete_award %}
+                <button type="button"
+                        id="award-update-delete"
+                        class="button button-danger"
+                        popovertargetaction="show">Delete</button>
+                {% else %}
+                <button type="button"
+                        class="button button-secondary"
+                        popovertarget="update-award-modal"
+                        popovertargetaction="hide">Cancel</button>
+                {% endif %}
+                <button type="submit" class="button">Update Award</button>
+            </div>
+        </form>
+    </div>
+</div>

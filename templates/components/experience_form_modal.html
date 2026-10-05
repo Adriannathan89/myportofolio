@@ -1,0 +1,47 @@
+<div id="{{ modal_id }}"
+     class="project-form-modal"
+     popover="auto"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="{{ modal_id }}-title">
+    <button type="button"
+            class="project-form-modal__backdrop"
+            popovertarget="{{ modal_id }}"
+            popovertargetaction="hide"
+            aria-label="Close experience form"></button>
+
+    <div class="project-form-modal__content">
+        <button type="button"
+                class="project-form-modal__close"
+                popovertarget="{{ modal_id }}"
+                popovertargetaction="hide"
+                aria-label="Close experience form">×</button>
+
+        <h2 id="{{ modal_id }}-title">{{ modal_title }}</h2>
+        <form id="{{ form_id }}" method="post" action="{{ form_action }}" class="project-form">
+            {% csrf_token %}
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <small class="form-help">{{ field.help_text }}</small>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <div class="project-form-modal__actions">
+                {% if form_id == 'experience-update-form' and perms.main.delete_experience %}
+                <button type="button"
+                        id="experience-update-delete"
+                        class="button button-danger">Delete</button>
+                {% else %}
+                <button type="button"
+                        class="button button-secondary"
+                        popovertarget="{{ modal_id }}"
+                        popovertargetaction="hide">Cancel</button>
+                {% endif %}
+                <button type="submit" class="button">{{ submit_label }}</button>
+            </div>
+        </form>
+    </div>
+</div>

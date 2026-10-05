@@ -294,6 +294,31 @@ h1,
     text-decoration: none;
 }
 
+.experience-card {
+    position: relative;
+    cursor: default;
+}
+
+.experience-card:has(.experience-card-edit-button) {
+    cursor: pointer;
+}
+
+.experience-card-edit-button {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.experience-card-edit-button:focus-visible {
+    outline: 3px solid var(--accent-dark);
+    outline-offset: 2px;
+}
+
 .project-description,
 .experience-highlights {
     flex: 1;
@@ -977,6 +1002,12 @@ h1,
     background: color-mix(in srgb, var(--accent) 12%, var(--paper));
 }
 
+.project-form-modal__actions .button.button-danger {
+    border-color: #b91c1c;
+    color: #fff;
+    background: #b91c1c;
+}
+
 @keyframes award-modal-enter {
     from {
         opacity: 0;
@@ -1169,6 +1200,10 @@ h1,
     inset: 0;
     z-index: 1;
     border-radius: inherit;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
 }
 
 .award-card-edit-link:focus-visible {

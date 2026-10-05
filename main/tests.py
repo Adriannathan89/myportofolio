@@ -156,7 +156,7 @@ class AuthenticationAuthorizationTest(TestCase):
     def test_anonymous_users_are_redirected_from_write_actions(self):
         award = Award.objects.create(title="Login required", date_received="2026-09-16")
 
-        response = self.client.get(reverse("main:create_award"))
+        response = self.client.post(reverse("main:create_award"))
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response["Location"].startswith(reverse("main:login")))
 
@@ -171,7 +171,7 @@ class AuthenticationAuthorizationTest(TestCase):
     def test_regular_user_cannot_create_award_or_experience(self):
         self.client.force_login(self.user)
 
-        award_response = self.client.get(reverse("main:create_award"))
+        award_response = self.client.post(reverse("main:create_award"))
         experience_response = self.client.get(reverse("main:create_experience"))
 
         self.assertEqual(award_response.status_code, 403)
@@ -251,7 +251,7 @@ class AuthenticationAuthorizationTest(TestCase):
         award = Award.objects.create(title="Original award", date_received="2026-09-16")
         experience = Experience.objects.create(title="Original experience")
 
-        self.assertEqual(self.client.get(reverse("main:create_award")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("main:create_award")).status_code, 403)
         self.assertEqual(self.client.get(reverse("main:create_experience")).status_code, 403)
         self.assertEqual(
             self.client.post(reverse("main:delete_award", args=[award.pk])).status_code,
@@ -263,8 +263,7 @@ class AuthenticationAuthorizationTest(TestCase):
         )
 
         award_form = self.client.get(reverse("main:update_award", args=[award.pk]))
-        self.assertEqual(award_form.status_code, 200)
-        self.assertContains(award_form, 'value="Original award"')
+        self.assertEqual(award_form.status_code, 405)
         award_response = self.client.post(
             reverse("main:update_award", args=[award.pk]),
             {"title": "Updated award", "date_received": "2026-09-16"},
@@ -320,6 +319,58 @@ class AuthenticationAuthorizationTest(TestCase):
         self.assertEqual(response.status_code, 403)
         award.refresh_from_db()
         self.assertEqual(award.title, "Protected award")
+
+
+class AwardModalUpdateTest(TestCase):
+    def setUp(self):
+        self.award = Award.objects.create(title="Original", date_received="2026-09-16")
+        self.editor = get_user_model().objects.create_user(username="modal_editor")
+        self.editor.groups.add(Group.objects.get(name="Editor"))
+        self.url = f"/award/{self.award.pk}/update-ajax/"
+        self.data = {"title": "<b>Updated</b>", "description": "<p>New description</p>",
+                     "issuer": "<i>University</i>", "date_received": "2026-09-17"}
+
+    def test_editor_updates_award_with_json_response_and_sanitized_text(self):
+        self.client.force_login(self.editor)
+        response = self.client.post(self.url, self.data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["pk"], str(self.award.pk))
+        self.award.refresh_from_db()
+        self.assertEqual(self.award.title, "Updated")
+        self.assertEqual(self.award.description, "New description")
+        self.assertEqual(self.award.issuer, "University")
+
+    def test_invalid_update_returns_errors_and_preserves_award(self):
+        self.client.force_login(self.editor)
+        response = self.client.post(self.url, {**self.data, "title": ""})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("title", response.json()["errors"])
+        self.award.refresh_from_db()
+        self.assertEqual(self.award.title, "Original")
+
+    def test_visitor_and_regular_user_cannot_update(self):
+        regular_user = get_user_model().objects.create_user(username="modal_regular")
+        for user in (None, regular_user):
+            with self.subTest(user=user):
+                if user:
+                    self.client.force_login(user)
+                response = self.client.post(self.url, self.data)
+                self.assertEqual(response.status_code, 403)
+                self.assertIn("message", response.json())
+        self.award.refresh_from_db()
+        self.assertEqual(self.award.title, "Original")
+
+    def test_missing_award_returns_json_404(self):
+        self.client.force_login(self.editor)
+        response = self.client.post(
+            "/award/00000000-0000-0000-0000-000000000000/update-ajax/", self.data
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("message", response.json())
+
+    def test_update_endpoint_rejects_get(self):
+        self.client.force_login(self.editor)
+        self.assertEqual(self.client.get(self.url).status_code, 405)
 
 
 class UserProfileTest(TestCase):

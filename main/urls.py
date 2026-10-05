@@ -18,6 +18,9 @@ from main.views import (
     register,
     toggle_star_award,
     create_award_ajax,
+    update_award_ajax,
+    create_experience_ajax,
+    update_experience_ajax,
 )
 
 app_name = "main"
@@ -26,6 +29,8 @@ urlpatterns = [
     path("", show_main, name="show_main"),
     path("experience/", show_experience, name="show_experience"),
     path("experience/add/", create_experience, name="create_experience"),
+    path("experience/add-ajax/", create_experience_ajax, name="create_experience_ajax"),
+    path("experience/<uuid:experience_id>/update-ajax/", update_experience_ajax, name="update_experience_ajax"),
     path("experience/<uuid:experience_id>/", update_experience, name="update_experience"),
     path("experience/<uuid:experience_id>/delete/", delete_experience, name="delete_experience"),
     path("award/", show_award, name="show_award"),
@@ -34,6 +39,7 @@ urlpatterns = [
     path("award/<uuid:award_id>/delete/", delete_award, name="delete_award"),
     path("award/<uuid:award_id>/toggle-star/", toggle_star_award, name="toggle_star_award"),
     path("award/add-ajax/", create_award_ajax, name="create_award_ajax"),
+    path("award/<uuid:award_id>/update-ajax/", update_award_ajax, name="update_award_ajax"),
     path("api/awards/", get_awards_json, name="get_awards_json"),
     path("api/experiences/", get_experience_json, name="get_experience_json"),
     path("register/", register, name="register"),

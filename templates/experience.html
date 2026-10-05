@@ -6,7 +6,7 @@
             <div class="award-heading">
                 <h1 class="menu-title">Experience</h1>
                 {% if perms.main.add_experience %}
-                <a href="{% url 'main:create_experience' %}" class="add-award-button">Add Experience</a>
+                <button type="button" class="add-award-button" popovertarget="add-experience-modal">Add Experience</button>
                 {% endif %}
             </div>
 
@@ -33,15 +33,27 @@
                 <p>No experience has been added yet.</p>
             </div>
 
-            <div id="grid" class="experience-timeline">
+            <div id="grid" class="experience-timeline empty-state-hidden">
             </div>
         </div>
     </section>
 </main>
 
+{% if perms.main.add_experience %}
+{% url 'main:create_experience_ajax' as create_experience_url %}
+{% include 'components/experience_form_modal.html' with modal_id='add-experience-modal' modal_title='Add a New Experience' form_id='experience-create-form' form=create_form form_action=create_experience_url submit_label='Add Experience' %}
+{% endif %}
+{% if perms.main.change_experience %}
+{% include 'components/experience_form_modal.html' with modal_id='update-experience-modal' modal_title='Update Experience' form_id='experience-update-form' form=update_form form_action='' submit_label='Save Changes' %}
+{% if perms.main.delete_experience %}
+{% include 'components/experience_delete_modal.html' %}
+{% endif %}
+{% endif %}
+
 <script>
     const BASE_EXPERIENCE_URL = "{% url 'main:get_experience_json' %}";
-    const UPDATE_EXPERIENCE_URL = "{% url 'main:update_experience' '00000000-0000-0000-0000-000000000000' %}";
+    const UPDATE_EXPERIENCE_URL = "{% url 'main:update_experience_ajax' '00000000-0000-0000-0000-000000000000' %}";
+    const DELETE_EXPERIENCE_URL = "{% url 'main:delete_experience' '00000000-0000-0000-0000-000000000000' %}";
     const HAS_CHANGE_EXPERIENCE = "{{ perms.main.change_experience|yesno:'true,false' }}" === "true";
     const SEARCH_DEBOUNCE_DELAY = 300;
     let experienceAbortController;
@@ -117,17 +129,15 @@
         cardElement.appendChild(statusElement);
 
         if (HAS_CHANGE_EXPERIENCE) {
-            const updateLink = document.createElement("a");
-            updateLink.className = "experience-card-link";
-            updateLink.href = UPDATE_EXPERIENCE_URL.replace(
-                "00000000-0000-0000-0000-000000000000",
-                encodeURIComponent(experienceId)
-            );
-            updateLink.appendChild(cardElement);
-            timelineItem.appendChild(updateLink);
-        } else {
-            timelineItem.appendChild(cardElement);
+            const editButton = document.createElement("button");
+            editButton.type = "button";
+            editButton.className = "experience-card-edit-button";
+            editButton.dataset.experienceId = experienceId;
+            editButton.setAttribute("aria-label", `Edit ${experience.title || "experience"}`);
+            editButton.addEventListener("click", () => openExperienceUpdateModal(item));
+            cardElement.appendChild(editButton);
         }
+        timelineItem.appendChild(cardElement);
 
         return timelineItem;
     }
@@ -213,6 +223,7 @@
             }
 
             displayPageSection({ showError: true });
+            showToast("Failed to load experiences", "Could not load the experience list. Please try again.", "error");
         }
     }
 
@@ -245,6 +256,90 @@
         searchExperiences();
     });
 
-    loadExperiences(searchInput.value.trim());
+    const EXPERIENCE_FIELDS = ["title", "description", "category", "keyfeatures", "start_at", "ended_at"];
+    const createExperienceForm = document.getElementById("experience-create-form");
+    const updateExperienceForm = document.getElementById("experience-update-form");
+    const updateExperienceModal = document.getElementById("update-experience-modal");
+    const deleteExperienceButton = document.getElementById("experience-update-delete");
+    const deleteExperienceModal = document.getElementById("delete-experience-modal");
+
+    if (deleteExperienceButton) {
+        deleteExperienceButton.addEventListener("click", () => {
+            updateExperienceModal.hidePopover();
+            deleteExperienceModal.showPopover();
+        });
+    }
+
+    function openExperienceUpdateModal(item) {
+        if (!updateExperienceForm || !updateExperienceModal) {
+            return;
+        }
+
+        updateExperienceForm.reset();
+        updateExperienceForm.action = UPDATE_EXPERIENCE_URL.replace(
+            "00000000-0000-0000-0000-000000000000", encodeURIComponent(item.pk)
+        );
+        if (deleteExperienceModal) {
+            document.getElementById("experience-delete-form").action = DELETE_EXPERIENCE_URL.replace(
+                "00000000-0000-0000-0000-000000000000", encodeURIComponent(item.pk)
+            );
+            document.getElementById("delete-experience-title").textContent = item.fields.title || "this experience";
+        }
+        for (const field of EXPERIENCE_FIELDS) {
+            updateExperienceForm.elements.namedItem(`update-${field}`).value = field === "keyfeatures"
+                ? JSON.stringify(item.fields.keyfeatures || [])
+                : item.fields[field] || "";
+        }
+        updateExperienceModal.showPopover();
+        updateExperienceForm.elements.namedItem("update-title").focus();
+    }
+
+    async function submitExperience(event, form, prefix, modalId, verb) {
+        event.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+
+        try {
+            const formData = new FormData();
+            for (const field of EXPERIENCE_FIELDS) {
+                formData.set(field, form.elements.namedItem(`${prefix}-${field}`).value);
+            }
+            formData.set("csrfmiddlewaretoken", form.elements.namedItem("csrfmiddlewaretoken").value);
+            const response = await fetch(form.action, {
+                method: "POST",
+                headers: { Accept: "application/json" },
+                body: formData,
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const errors = result.errors
+                    ? Object.values(result.errors).flat().map((error) => String(error?.message || error))
+                    : [result.message || `Something went wrong (status ${response.status}).`];
+                showToast(`Failed to ${verb} experience`, errors.join(" "), "error");
+                return;
+            }
+
+            document.getElementById(modalId).hidePopover();
+            form.reset();
+            showToast("Success", result.message, "success");
+            clearTimeout(searchDebounceTimeout);
+            await loadExperiences(searchInput.value.trim());
+        } catch (error) {
+            showToast(`Failed to ${verb} experience`, "Could not reach the server. Please try again.", "error");
+        } finally {
+            submitButton.disabled = false;
+        }
+    }
+
+    if (createExperienceForm) {
+        createExperienceForm.addEventListener("submit", (event) =>
+            submitExperience(event, createExperienceForm, "create", "add-experience-modal", "add"));
+    }
+    if (updateExperienceForm) {
+        updateExperienceForm.addEventListener("submit", (event) =>
+            submitExperience(event, updateExperienceForm, "update", "update-experience-modal", "update"));
+    }
+
+    document.addEventListener("DOMContentLoaded", () => loadExperiences(searchInput.value.trim()));
 </script>
 {% endblock content %}

@@ -5,7 +5,7 @@ from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -103,7 +103,8 @@ def show_experience(request):
     context = {
         "name": "Adrian Nathanael Setiawan",
         "title_query": title_query,
-        "form": ExperienceForm(),
+        "create_form": ExperienceForm(prefix="create"),
+        "update_form": ExperienceForm(prefix="update"),
     }
     return render(request, "experience.html", context)
 
@@ -115,6 +116,7 @@ def show_award(request):
         "name": "Adrian Nathanael Setiawan",
         "title_query": title_query,
         "form": AwardForm(),
+        "update_form": AwardForm(prefix="update"),
     }
     return render(request, "award.html", context)
 
@@ -169,6 +171,7 @@ def get_experience_json(request):
                     "title": experience.title,
                     "description": experience.description or "",
                     "thumbnail": getattr(experience, "thumbnail", None),
+                    "category": experience.category,
                     "category_display": experience.get_category_display(),
                     "keyfeatures": experience.keyfeatures or [],
                     "start_at": experience.start_at.isoformat()
@@ -186,6 +189,7 @@ def get_experience_json(request):
 
 
 # ---------------------------------- Award Form Model CRUD  ----------------------------------
+@require_POST
 @login_required(login_url="main:login")
 def create_award(request):
     form = AwardForm(request.POST if request.method == "POST" else None)
@@ -219,6 +223,23 @@ def create_award_ajax(request):
     else:
         return JsonResponse({"errors": form.errors}, status=400)
 
+@require_POST
+def update_award_ajax(request, award_id):
+    if not request.user.has_perm("main.change_award"):
+        return JsonResponse({"message": "You do not have permission to update awards."}, status=403)
+
+    award = Award.objects.filter(pk=award_id).first()
+    if award is None:
+        return JsonResponse({"message": "Award not found."}, status=404)
+
+    form = AwardForm(request.POST, instance=award)
+    if not form.is_valid():
+        return JsonResponse({"errors": form.errors}, status=400)
+
+    form.save()
+    return JsonResponse({"message": "Award updated successfully.", "pk": str(award.pk)})
+
+@require_POST
 @login_required(login_url="main:login")
 def update_award(request, award_id):
     if not request.user.has_perm("main.change_award"):
@@ -231,17 +252,6 @@ def update_award(request, award_id):
         form.save()
         messages.success(request, "Award updated successfully.")
         return redirect("main:show_award")
-
-    return render(
-        request,
-        "award_update_form.html",
-        {
-            "name": "Adrian Nathanael Setiawan",
-            "form": form,
-            "award": award,
-        },
-    )
-
 
 @login_required(login_url="main:login")
 @require_POST
@@ -272,6 +282,36 @@ def toggle_star_award(request, award_id):
 
 
 # ---------------------------------- Experience Form Model CRUD  ----------------------------------
+@require_POST
+def create_experience_ajax(request):
+    if not request.user.has_perm("main.add_experience"):
+        return JsonResponse({"message": "You do not have permission to add experiences."}, status=403)
+
+    form = ExperienceForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse({"errors": form.errors}, status=400)
+
+    experience = form.save()
+    return JsonResponse({"message": "Experience added successfully.", "pk": str(experience.pk)}, status=201)
+
+
+@require_POST
+def update_experience_ajax(request, experience_id):
+    if not request.user.has_perm("main.change_experience"):
+        return JsonResponse({"message": "You do not have permission to update experiences."}, status=403)
+
+    experience = Experience.objects.filter(pk=experience_id).first()
+    if experience is None:
+        return JsonResponse({"message": "Experience not found."}, status=404)
+
+    form = ExperienceForm(request.POST, instance=experience)
+    if not form.is_valid():
+        return JsonResponse({"errors": form.errors}, status=400)
+
+    form.save()
+    return JsonResponse({"message": "Experience updated successfully.", "pk": str(experience.pk)})
+
+
 @login_required(login_url="main:login")
 def create_experience(request):
     if not request.user.has_perm("main.add_experience"):

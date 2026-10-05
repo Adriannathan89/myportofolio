@@ -17,7 +17,7 @@ Website ini menggunakan Django untuk merender halaman portfolio. Halaman utama m
 - **Profile (`/`)** — nama, bio, program studi, NPM, foto profil, dan tautan sosial media.
 - **User Profile (`/profile/`)** — halaman akun pribadi untuk mengganti username dan, bila perlu, password.
 - **Projects (`/#projects`)** — project yang ditampilkan sebagai card berisi deskripsi, tags teknologi, serta tautan GitHub atau npm.
-- **Experience (`/experience/`)** — timeline pengalaman dari model `Experience`, termasuk kategori, periode, deskripsi, dan key features. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan experience, serta pembaruan atau penghapusan melalui klik pada kartu experience.
+- **Experience (`/experience/`)** — timeline pengalaman dari model `Experience`, termasuk kategori, periode, deskripsi, dan key features. Data dimuat melalui AJAX, pencarian judul memakai debounce, dan tambah/edit tersedia dalam modal tanpa reload.
 - **Awards (`/award/`)** — data penghargaan dari model `Award`, termasuk judul, tanggal diterima, thumbnail sertifikat, deskripsi, dan issuer. Halaman ini mendukung pencarian berdasarkan judul (`?title=`), penambahan, pengubahan melalui klik pada kartu, dan penghapusan award.
 - **Awards API (`/api/awards/`)** — data award dalam format JSON dan filter judul melalui query `?title=`.
 
@@ -47,15 +47,37 @@ Superuser dapat menambah, mengubah, dan menghapus data. Akun dalam group `Editor
 | Fitur | URL | Keterangan |
 | --- | --- | --- |
 | Daftar experience | `/experience/` | Timeline experience dan pencarian judul dengan `?title=`. |
-| Tambah experience | `/experience/add/` | Memerlukan izin `main.add_experience`. |
-| Ubah experience | `/experience/<uuid>/` | Memerlukan izin `main.change_experience`; form terisi data saat ini. |
+| Tambah experience via AJAX | `/experience/add-ajax/` | POST dari modal; memerlukan izin `main.add_experience`. |
+| Ubah experience via AJAX | `/experience/<uuid>/update-ajax/` | POST dari modal; memerlukan izin `main.change_experience`. |
 | Hapus experience | `/experience/<uuid>/delete/` | Memerlukan izin `main.delete_experience`; menerima `POST` dari modal konfirmasi. |
 | Daftar award | `/award/` | Daftar award, pencarian judul dengan `?title=`, dan jumlah star; akun login dapat memberi atau membatalkan star. |
-| Tambah award | `/award/add/` | Memerlukan izin `main.add_award`. |
-| Ubah award | `/award/<uuid>/` | Memerlukan izin `main.change_award`; klik kartu award untuk membuka form yang sudah terisi. |
+| Tambah award via AJAX | `/award/add-ajax/` | POST dari modal; memerlukan izin `main.add_award`. |
+| Ubah award via AJAX | `/award/<uuid>/update-ajax/` | POST dari modal; memerlukan izin `main.change_award`. |
 | Hapus award | `/award/<uuid>/delete/` | Memerlukan izin `main.delete_award`; menerima `POST` dari modal konfirmasi. |
 
-Pada halaman Awards, Editor dan superuser dapat mengklik **area mana pun pada kartu award** untuk membuka form edit yang sudah terisi. Judul kartu tetap berupa teks hitam. Setelah mengubah data, pilih **Save** untuk menyimpan atau **Cancel** untuk kembali ke daftar. Tombol **Star/Unstar** tetap menjalankan interaksinya sendiri; tombol **Delete** hanya terlihat oleh superuser dan tidak membuka form edit. Pengunjung dan akun biasa dapat melihat kartu, tetapi tidak mendapat tautan edit.
+Pada halaman Awards dan Experience, Editor dan superuser dapat mengklik kartu untuk membuka modal edit yang sudah terisi. Penambahan data tersedia untuk superuser melalui tombol Add. Setelah penyimpanan berhasil, modal ditutup dan daftar diperbarui lewat AJAX dengan filter pencarian saat ini. Kesalahan validasi ditampilkan melalui toast dan isian modal dipertahankan agar dapat diperbaiki. Tombol Star/Unstar dan Delete pada Award tetap menjalankan interaksinya sendiri. Rute form lama masih tersedia dengan perilaku sebelumnya; rute tambah/edit Award lama hanya menerima POST.
+
+### Assignment 5: AJAX dan modal
+
+- Halaman daftar merender kerangka; `fetch()` mengambil data dari `/api/awards/` dan `/api/experiences/`.
+- Respons JSON disusun manual dengan `JsonResponse`. Award menyertakan `star_count` dan `is_starred` untuk pengguna saat ini; pengunjung mendapatkan `is_starred: false`.
+- Pencarian judul pada kedua halaman menggunakan debounce 300 ms dan membatalkan request sebelumnya.
+- Kedua halaman menampilkan loading, empty, dan error state. Kegagalan memuat data juga menampilkan toast.
+- Form tambah/edit berada dalam modal. Endpoint tambah mengembalikan 201, validasi gagal 400, dan pengguna tanpa izin 403; update berhasil mengembalikan 200. Izin diperiksa dalam view dengan permission Django.
+- POST menyertakan CSRF, menggunakan ModelForm, dan memperbarui daftar tanpa reload. Toast menampilkan hasil berhasil, kegagalan jaringan, serta pesan validasi server.
+- Data dari JSON dipasang lewat `textContent`, atribut DOM, atau `.value`; input teks dibersihkan memakai `strip_tags` pada metode `clean_<field>` ModelForm.
+- Pengunjung dan pengguna biasa dapat membaca data; Editor hanya mengedit; superuser dapat menambah dan mengedit.
+
+Implementasi diuji dengan siklus TDD: tes endpoint dan browser ditulis serta dijalankan sebelum fitur dilengkapi, kemudian dijalankan ulang sampai lolos. Jalankan pemeriksaan berikut dari root project:
+
+```bash
+env/bin/python manage.py test
+env/bin/python scripts/check_ajax_browser.py
+env/bin/python manage.py check
+env/bin/python manage.py runserver
+```
+
+Tes browser menggunakan database tes sementara, Selenium, dan Chrome/Chromedriver lokal (termasuk cache Selenium). Jika diperlukan, set `CHROME_BINARY` dan `CHROMEDRIVER_BINARY`. Tes mencakup seluruh role, modal tambah/edit Experience, tambah Award, validasi, retry jaringan, debounce, state pemuatan, toast, serta rendering aman data HTML lama. Kegagalan request awal dan kegagalan refresh setelah penyimpanan berhasil juga diuji, termasuk retry daftar tanpa mengirim POST ulang.
 
 Untuk memberikan role Editor, jalankan `python manage.py migrate`, lalu masuk ke `/admin/` memakai akun superuser. Buka **Authentication and Authorization → Users**, pilih akun yang sudah ada, dan tambahkan group **Editor** pada bagian **Groups**. Editor mengelola konten melalui halaman portfolio, bukan melalui Django admin; tidak perlu mengaktifkan `Staff status` atau `Superuser status` pada akunnya.
 
@@ -284,6 +306,20 @@ Lalu kita perlu menggunakan `{% csrf_token %}` untuk mencegah serangan Cross-Sit
    5. Deserialisasi Client Side -> JavaScript pada browser melakukan `fetch()`ke endpoint yang sudah dipetakan tadi, menerima response JSON dan men-deserialise string json tadi kedalam bentuk object javascript navite sehingga hasilnya dapat ditampilkan secara dinamis di halaman web.
 Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QuerySet` atau Django model yang berbahasa python, sedangkan browser yang menggunakan bahasa javascript tidak dapat memahami apa itu Django model sehingga hasil dari `QuerySet` tadi di serialisasi ke dalam bentuk `JSON` dan dikirimkan bentuk stringnya sehingga nantinya browser tinggal tinggal parse string tersebut kedalam bentuk java script object navite dan dapat diproses.
 
+
+### Assignment 5
+1. Debouncing adalah teknik yang digunakan untuk menunda eksekusi sebuah fungsi sampai pengguna berhenti memicu event dalam kurun waktu yang telah ditentukan. jika event terjadi lagi selama interval debouncing yang telah disepakati, maka timer/counter debouncernya akan dihitung ulang. debounccer ini penting karena ada beberapa penghematan jika kita mengimplementasikannya diantaranya:
+   - mengurangi beban terhadap server (server hanya perlu memproses data yang sudah siap dan tidak memproses query satu satu)
+   - mengurangi bandwith dan query database (request yang memicu komunikasi dan query ke database adalah request yang sudah siap di proses)
+
+2. fetch merupakan fungsi yang bersifat asinkron dan mengembalikan sebuah promise, dan bukan data response. saat kita tidak melakukan await, ibaratnya kita hanya menerima janji tetapi tidak pernah tahu kapan janji itu akan ditepati. dengan menggunakan keyword `await`, kita akan mengunggu object promise tadi selesai (resolved), lalu mengambil nilai hasilnya. selama proses fetch ini, thread utama browser tidak terblokir, sehingga proses tetap berjalan dengan mulus
+
+3. XSS adalah celah keamanan di mana penyerang menyisipkan kode javascript berbahaya ke dalam halaman web yang kemudian di eksekusi di browser korban. skrip ini biasanya dapat berupa:
+   - script untuk mencuri cookie atau token sesi (session hijacking)
+   - script untuk mengubah halaman atau mengarahakannya ke situs phising
+
+data yang ditampilkan melalui ajax lebih rentan karena sanitasi input pada ajax sepenuhnya menjadi tanggung jawab pengembang, berbeda dengan django template yang sudah memiliki default escaping seperti `<` menjadi `&lt;`. lalu dari cara merendernya, pada django template teks dirender sebagai teks biasa sedangkan di ajax, akan diperlakukan sebagai HTML.
+
 ### AI Disclosure
 
 ## Assignment 1
@@ -321,3 +357,12 @@ Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QueryS
 * pada kasus ini saya belajar bahwa tdd saja belum cukup untuk memastikan applikasi saya berjalan sesuai dengan yang diinginkan, perlu dilakuakn e2e testing untuk memastikan bahwa semuanya berjalan sesuai dengan spek yang sudah disepakati.
 
 * Model AI yang digunakan GPT-6.0-sol (Medium)
+
+## Assignment 5
+* pada assignment 5, saya mengunakan ai untuk melakukan migration terhadap model yang sudah ada, sebelumnya saya telah mengimplementasikan ajax terhadap model award, lalu saya memintanya melakukan hal yang sama terhadap model experience.
+
+* pada kali ini, saya membuat plan dulu (plan ada di docs/) sebelum ai mengerjakan bagiannya untuk melakukan pemindahan kepada ajax lalu memastikan juga ai menggunakan workflow tdd.
+
+* dengan pendekatan ini, perbaikan yang saya lakukan secara manual dibilang cukup minim, saya melakuakan perbaikan terhadap button delete yang tidak muncul di modal update lalu mennghapus delete button di card award yang redundant.
+
+* Model AI yang digunakan GPT-6.1-sol (Medium)
