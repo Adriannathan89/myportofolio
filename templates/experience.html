@@ -321,6 +321,6 @@
             submitExperience(event, updateExperienceForm, "update", "update-experience-modal", "update"));
     }
 
-    loadExperiences(searchInput.value.trim());
+    document.addEventListener("DOMContentLoaded", () => loadExperiences(searchInput.value.trim()));
 </script>
 {% endblock content %}

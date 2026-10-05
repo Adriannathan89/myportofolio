@@ -540,6 +540,6 @@
         awardForm.addEventListener("submit", addAward);
     }
 
-    loadAwards(awardSearchInput.value.trim());
+    document.addEventListener("DOMContentLoaded", () => loadAwards(awardSearchInput.value.trim()));
 </script>
 {% endblock content %}
