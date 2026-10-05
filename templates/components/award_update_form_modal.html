@@ -32,10 +32,17 @@
                 </div>
             {% endfor %}
             <div class="project-form-modal__actions">
+                {% if perms.main.delete_award %}
+                <button type="button"
+                        id="award-update-delete"
+                        class="button button-danger"
+                        popovertargetaction="show">Delete</button>
+                {% else %}
                 <button type="button"
                         class="button button-secondary"
                         popovertarget="update-award-modal"
                         popovertargetaction="hide">Cancel</button>
+                {% endif %}
                 <button type="submit" class="button">Update Award</button>
             </div>
         </form>

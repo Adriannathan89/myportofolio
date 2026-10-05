@@ -1002,6 +1002,12 @@ h1,
     background: color-mix(in srgb, var(--accent) 12%, var(--paper));
 }
 
+.project-form-modal__actions .button.button-danger {
+    border-color: #b91c1c;
+    color: #fff;
+    background: #b91c1c;
+}
+
 @keyframes award-modal-enter {
     from {
         opacity: 0;

@@ -428,6 +428,18 @@
     const awardForm = document.getElementById("award-form");
     const awardUpdateForm = document.getElementById("award-update-form");
     const awardUpdateModal = document.getElementById("update-award-modal");
+    const awardUpdateDeleteButton = document.getElementById("award-update-delete");
+
+    if (awardUpdateDeleteButton) {
+        awardUpdateDeleteButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            const deleteModal = document.getElementById(awardUpdateDeleteButton.getAttribute("popovertarget"));
+            if (deleteModal) {
+                awardUpdateModal.hidePopover();
+                deleteModal.showPopover();
+            }
+        });
+    }
 
     function openAwardUpdateModal(item) {
         if (!awardUpdateForm || !awardUpdateModal) {
@@ -436,6 +448,7 @@
 
         awardUpdateForm.reset();
         awardUpdateForm.action = replaceAwardId(UPDATE_AWARD_URL, item.pk);
+        awardUpdateDeleteButton?.setAttribute("popovertarget", `delete-award-${item.pk}`);
         for (const field of ["title", "description", "thumbnail", "issuer", "date_received"]) {
             awardUpdateForm.elements.namedItem(`update-${field}`).value = item.fields[field] || "";
         }
