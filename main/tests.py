@@ -156,7 +156,7 @@ class AuthenticationAuthorizationTest(TestCase):
     def test_anonymous_users_are_redirected_from_write_actions(self):
         award = Award.objects.create(title="Login required", date_received="2026-09-16")
 
-        response = self.client.get(reverse("main:create_award"))
+        response = self.client.post(reverse("main:create_award"))
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response["Location"].startswith(reverse("main:login")))
 
@@ -171,7 +171,7 @@ class AuthenticationAuthorizationTest(TestCase):
     def test_regular_user_cannot_create_award_or_experience(self):
         self.client.force_login(self.user)
 
-        award_response = self.client.get(reverse("main:create_award"))
+        award_response = self.client.post(reverse("main:create_award"))
         experience_response = self.client.get(reverse("main:create_experience"))
 
         self.assertEqual(award_response.status_code, 403)
@@ -251,7 +251,7 @@ class AuthenticationAuthorizationTest(TestCase):
         award = Award.objects.create(title="Original award", date_received="2026-09-16")
         experience = Experience.objects.create(title="Original experience")
 
-        self.assertEqual(self.client.get(reverse("main:create_award")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("main:create_award")).status_code, 403)
         self.assertEqual(self.client.get(reverse("main:create_experience")).status_code, 403)
         self.assertEqual(
             self.client.post(reverse("main:delete_award", args=[award.pk])).status_code,
@@ -263,8 +263,7 @@ class AuthenticationAuthorizationTest(TestCase):
         )
 
         award_form = self.client.get(reverse("main:update_award", args=[award.pk]))
-        self.assertEqual(award_form.status_code, 200)
-        self.assertContains(award_form, 'value="Original award"')
+        self.assertEqual(award_form.status_code, 405)
         award_response = self.client.post(
             reverse("main:update_award", args=[award.pk]),
             {"title": "Updated award", "date_received": "2026-09-16"},
