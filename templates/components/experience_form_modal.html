@@ -30,10 +30,16 @@
                 </div>
             {% endfor %}
             <div class="project-form-modal__actions">
+                {% if form_id == 'experience-update-form' and perms.main.delete_experience %}
+                <button type="button"
+                        id="experience-update-delete"
+                        class="button button-danger">Delete</button>
+                {% else %}
                 <button type="button"
                         class="button button-secondary"
                         popovertarget="{{ modal_id }}"
                         popovertargetaction="hide">Cancel</button>
+                {% endif %}
                 <button type="submit" class="button">{{ submit_label }}</button>
             </div>
         </form>

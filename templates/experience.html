@@ -45,11 +45,15 @@
 {% endif %}
 {% if perms.main.change_experience %}
 {% include 'components/experience_form_modal.html' with modal_id='update-experience-modal' modal_title='Update Experience' form_id='experience-update-form' form=update_form form_action='' submit_label='Save Changes' %}
+{% if perms.main.delete_experience %}
+{% include 'components/experience_delete_modal.html' %}
+{% endif %}
 {% endif %}
 
 <script>
     const BASE_EXPERIENCE_URL = "{% url 'main:get_experience_json' %}";
     const UPDATE_EXPERIENCE_URL = "{% url 'main:update_experience_ajax' '00000000-0000-0000-0000-000000000000' %}";
+    const DELETE_EXPERIENCE_URL = "{% url 'main:delete_experience' '00000000-0000-0000-0000-000000000000' %}";
     const HAS_CHANGE_EXPERIENCE = "{{ perms.main.change_experience|yesno:'true,false' }}" === "true";
     const SEARCH_DEBOUNCE_DELAY = 300;
     let experienceAbortController;
@@ -256,6 +260,15 @@
     const createExperienceForm = document.getElementById("experience-create-form");
     const updateExperienceForm = document.getElementById("experience-update-form");
     const updateExperienceModal = document.getElementById("update-experience-modal");
+    const deleteExperienceButton = document.getElementById("experience-update-delete");
+    const deleteExperienceModal = document.getElementById("delete-experience-modal");
+
+    if (deleteExperienceButton) {
+        deleteExperienceButton.addEventListener("click", () => {
+            updateExperienceModal.hidePopover();
+            deleteExperienceModal.showPopover();
+        });
+    }
 
     function openExperienceUpdateModal(item) {
         if (!updateExperienceForm || !updateExperienceModal) {
@@ -266,6 +279,12 @@
         updateExperienceForm.action = UPDATE_EXPERIENCE_URL.replace(
             "00000000-0000-0000-0000-000000000000", encodeURIComponent(item.pk)
         );
+        if (deleteExperienceModal) {
+            document.getElementById("experience-delete-form").action = DELETE_EXPERIENCE_URL.replace(
+                "00000000-0000-0000-0000-000000000000", encodeURIComponent(item.pk)
+            );
+            document.getElementById("delete-experience-title").textContent = item.fields.title || "this experience";
+        }
         for (const field of EXPERIENCE_FIELDS) {
             updateExperienceForm.elements.namedItem(`update-${field}`).value = field === "keyfeatures"
                 ? JSON.stringify(item.fields.keyfeatures || [])
