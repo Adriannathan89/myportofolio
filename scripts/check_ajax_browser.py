@@ -263,6 +263,21 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
                     self.assertTrue(self.driver.execute_script('return document.getElementById("toast-component").matches(":popover-open")'))
                     self.wait.until(lambda driver: "Failed to load" in driver.find_element(By.ID, "toast-title").text)
 
+    def test_initial_load_failure_shows_toast_after_page_initialization(self):
+        injection = self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": '''
+            const originalFetch = window.fetch;
+            window.fetch = (...args) => String(args[0]).includes("/api/")
+                ? Promise.resolve(new Response("unavailable", {status: 500}))
+                : originalFetch(...args);
+        '''})["identifier"]
+        try:
+            for path, error_id in (("/experience/", "error"), ("/award/", "award-error")):
+                with self.subTest(path=path):
+                    self.driver.get(self.live_server_url + path)
+                    self.wait.until(lambda driver: "Failed to load" in driver.find_element(By.ID, "toast-title").text)
+                    self.assertTrue(self.driver.find_element(By.ID, error_id).is_displayed())
+        finally:
+            self.driver.execute_cdp_cmd("Page.removeScriptToEvaluateOnNewDocument", {"identifier": injection})
 
     def test_legacy_html_is_rendered_as_text_for_visitors(self):
         payload = '<img src="x" onerror="window.xssTriggered = true">'
