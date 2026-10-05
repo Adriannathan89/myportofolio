@@ -306,6 +306,20 @@ Lalu kita perlu menggunakan `{% csrf_token %}` untuk mencegah serangan Cross-Sit
    5. Deserialisasi Client Side -> JavaScript pada browser melakukan `fetch()`ke endpoint yang sudah dipetakan tadi, menerima response JSON dan men-deserialise string json tadi kedalam bentuk object javascript navite sehingga hasilnya dapat ditampilkan secara dinamis di halaman web.
 Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QuerySet` atau Django model yang berbahasa python, sedangkan browser yang menggunakan bahasa javascript tidak dapat memahami apa itu Django model sehingga hasil dari `QuerySet` tadi di serialisasi ke dalam bentuk `JSON` dan dikirimkan bentuk stringnya sehingga nantinya browser tinggal tinggal parse string tersebut kedalam bentuk java script object navite dan dapat diproses.
 
+
+### Assignment 5
+1. Debouncing adalah teknik yang digunakan untuk menunda eksekusi sebuah fungsi sampai pengguna berhenti memicu event dalam kurun waktu yang telah ditentukan. jika event terjadi lagi selama interval debouncing yang telah disepakati, maka timer/counter debouncernya akan dihitung ulang. debounccer ini penting karena ada beberapa penghematan jika kita mengimplementasikannya diantaranya:
+   - mengurangi beban terhadap server (server hanya perlu memproses data yang sudah siap dan tidak memproses query satu satu)
+   - mengurangi bandwith dan query database (request yang memicu komunikasi dan query ke database adalah request yang sudah siap di proses)
+
+2. fetch merupakan fungsi yang bersifat asinkron dan mengembalikan sebuah promise, dan bukan data response. saat kita tidak melakukan await, ibaratnya kita hanya menerima janji tetapi tidak pernah tahu kapan janji itu akan ditepati. dengan menggunakan keyword `await`, kita akan mengunggu object promise tadi selesai (resolved), lalu mengambil nilai hasilnya. selama proses fetch ini, thread utama browser tidak terblokir, sehingga proses tetap berjalan dengan mulus
+
+3. XSS adalah celah keamanan di mana penyerang menyisipkan kode javascript berbahaya ke dalam halaman web yang kemudian di eksekusi di browser korban. skrip ini biasanya dapat berupa:
+   - script untuk mencuri cookie atau token sesi (session hijacking)
+   - script untuk mengubah halaman atau mengarahakannya ke situs phising
+
+data yang ditampilkan melalui ajax lebih rentan karena sanitasi input pada ajax sepenuhnya menjadi tanggung jawab pengembang, berbeda dengan django template yang sudah memiliki default escaping seperti `<` menjadi `&lt;`. lalu dari cara merendernya, pada django template teks dirender sebagai teks biasa sedangkan di ajax, akan diperlakukan sebagai HTML.
+
 ### AI Disclosure
 
 ## Assignment 1
@@ -343,3 +357,12 @@ Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QueryS
 * pada kasus ini saya belajar bahwa tdd saja belum cukup untuk memastikan applikasi saya berjalan sesuai dengan yang diinginkan, perlu dilakuakn e2e testing untuk memastikan bahwa semuanya berjalan sesuai dengan spek yang sudah disepakati.
 
 * Model AI yang digunakan GPT-6.0-sol (Medium)
+
+## Assignment 5
+* pada assignment 5, saya mengunakan ai untuk melakukan migration terhadap model yang sudah ada, sebelumnya saya telah mengimplementasikan ajax terhadap model award, lalu saya memintanya melakukan hal yang sama terhadap model experience.
+
+* pada kali ini, saya membuat plan dulu (plan ada di docs/) sebelum ai mengerjakan bagiannya untuk melakukan pemindahan kepada ajax lalu memastikan juga ai menggunakan workflow tdd.
+
+* dengan pendekatan ini, perbaikan yang saya lakukan secara manual dibilang cukup minim, saya melakuakan perbaikan terhadap button delete yang tidak muncul di modal update lalu mennghapus delete button di card award yang redundant.
+
+* Model AI yang digunakan GPT-6.1-sol (Medium)
