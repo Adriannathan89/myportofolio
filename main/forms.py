@@ -1,9 +1,18 @@
-from django.core.exceptions import ValidationError
-from django.contrib.auth.password_validation import validate_password
-from django.forms import CharField, DateInput, ModelForm, PasswordInput, Select, TextInput, Textarea
-from django.contrib.auth.models import User
-from django.utils.html import strip_tags
 from urllib.parse import urlsplit
+
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.forms import (
+    CharField,
+    DateInput,
+    ModelForm,
+    PasswordInput,
+    Select,
+    Textarea,
+    TextInput,
+)
+from django.utils.html import strip_tags
 
 from main.models import Award, Experience
 

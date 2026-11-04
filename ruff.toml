@@ -1,0 +1,10 @@
+target-version = "py310"
+extend-exclude = ["env", "feat"]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+
+[lint.per-file-ignores]
+"main/migrations/*.py" = ["I"]
+# Django must be configured before model imports in the browser test runner.
+"scripts/check_ajax_browser.py" = ["E402"]

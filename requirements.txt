@@ -1,4 +1,4 @@
-django==5.0
+django>=5.2,<5.3
 gunicorn
 whitenoise
 psycopg2-binary
@@ -6,3 +6,4 @@ requests
 urllib3
 python-dotenv
 selenium>=4.6,<5
+djangorestframework~=3.18.3

@@ -1,12 +1,12 @@
 import json
+from datetime import date
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import FieldDoesNotExist
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-from django.core.exceptions import FieldDoesNotExist
-from datetime import date
-from pathlib import Path
 
 from main.forms import ExperienceForm
 from main.models import Award, Experience
@@ -35,7 +35,7 @@ class MainTest(TestCase):
         self.assertContains(response, f'href="{reverse("main:show_experience")}"')
 
     def test_main_page_does_not_render_experience_section(self):
-        template_path = Path(__file__).resolve().parent.parent / "templates" / "index.html"
+        template_path = Path(__file__).resolve().parents[2] / "templates" / "index.html"
         template = template_path.read_text()
 
         self.assertNotIn('<section id="experience"', template)
@@ -43,7 +43,7 @@ class MainTest(TestCase):
         self.assertNotIn("Fullstack Developer at DDP0", template)
 
     def test_experience_seed_script_declares_required_records(self):
-        script_path = Path(__file__).resolve().parent.parent / "scripts" / "seed_experience.sh"
+        script_path = Path(__file__).resolve().parents[2] / "scripts" / "seed_experience.sh"
         self.assertTrue(script_path.is_file(), f"Expected seed script at {script_path}")
         if not script_path.is_file():
             return
@@ -57,7 +57,7 @@ class MainTest(TestCase):
         self.assertIn('"keyfeatures"', script)
 
     def test_award_seed_script_declares_required_records(self):
-        script_path = Path(__file__).resolve().parent.parent / "scripts" / "seed_award.sh"
+        script_path = Path(__file__).resolve().parents[2] / "scripts" / "seed_award.sh"
         self.assertTrue(script_path.is_file(), f"Expected award seed script at {script_path}")
         if not script_path.is_file():
             return
@@ -189,8 +189,8 @@ class MainTest(TestCase):
         self.assertContains(response, "award-delete-modal")
         self.assertContains(response, "const DELETE_AWARD_URL =")
         self.assertNotContains(response, 'name="action_key"')
-        api_response = self.client.get(reverse("main:get_awards_json"))
-        self.assertIn(str(award.pk), [item["pk"] for item in api_response.json()])
+        api_response = self.client.get(reverse("api:award_list"))
+        self.assertIn(str(award.pk), [item["id"] for item in api_response.json()])
 
     def test_award_form_accepts_relative_thumbnail_path(self):
         response = self.client.post(
@@ -227,11 +227,11 @@ class MainTest(TestCase):
         response = self.client.get(reverse("main:show_award"))
 
         self.assertContains(response, "const HAS_DELETE_AWARD = \"true\" === \"true\";")
-        self.assertContains(response, "function buildAwardDeleteButton")
+        self.assertContains(response, 'id="award-update-delete"')
         self.assertContains(response, "function buildAwardDeleteModal")
         self.assertContains(response, "const DELETE_AWARD_URL =")
-        api_response = self.client.get(reverse("main:get_awards_json"))
-        self.assertIn(str(award.pk), [item["pk"] for item in api_response.json()])
+        api_response = self.client.get(reverse("api:award_list"))
+        self.assertIn(str(award.pk), [item["id"] for item in api_response.json()])
 
     def test_delete_award_removes_award_and_redirects_to_awards(self):
         award = Award.objects.create(
@@ -261,7 +261,7 @@ class MainTest(TestCase):
         self.assertTrue(Award.objects.filter(pk=award.id).exists())
 
     def test_award_grid_aligns_cards_to_their_content(self):
-        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet_path = Path(__file__).resolve().parents[2] / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
 
         self.assertIn(
@@ -276,7 +276,7 @@ class MainTest(TestCase):
         )
 
     def test_award_cards_have_fixed_dimensions_and_keep_thumbnail_top_visible(self):
-        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet_path = Path(__file__).resolve().parents[2] / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
 
         self.assertIn("height: 500px;", stylesheet)
@@ -290,7 +290,7 @@ class MainTest(TestCase):
         self.assertIn("object-position: top;", stylesheet)
 
     def test_award_delete_action_is_pinned_to_the_card_bottom_right(self):
-        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet_path = Path(__file__).resolve().parents[2] / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
 
         card_start = stylesheet.index(".award-grid .award-card {")
@@ -540,7 +540,7 @@ class MainTest(TestCase):
         self.assertIn("gridContainer.appendChild(buildExperienceCard(item))", content)
 
     def test_experience_styles_define_responsive_font_sizes(self):
-        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet_path = Path(__file__).resolve().parents[2] / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
 
         self.assertIn("@media (max-width: 900px)", stylesheet)
