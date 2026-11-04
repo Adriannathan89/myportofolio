@@ -10,13 +10,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from main.models import Award
-from main.permissions import IsPortfolioOwnerOrReadOnly
+from main.permissions import IsPortfolioOwnerOrReadOnly, IsPortfolioOwnerOrEditorOrReadOnly
 from main.serializers import AwardSerializer
 
 
 @api_view(['GET', 'HEAD', 'POST'])
 @authentication_classes([SessionAuthentication])
-@permission_classes([IsPortfolioOwnerOrReadOnly])
+@permission_classes([IsPortfolioOwnerOrReadOnly, IsPortfolioOwnerOrEditorOrReadOnly])
 def award_list(request):
     if request.method in ('GET', 'HEAD'):
         awards = Award.objects.prefetch_related('starred_by').order_by('title', 'id')
@@ -33,7 +33,7 @@ def award_list(request):
 
 @api_view(['GET', 'HEAD', 'PUT', 'PATCH', 'DELETE'])
 @authentication_classes([SessionAuthentication])
-@permission_classes([IsPortfolioOwnerOrReadOnly])
+@permission_classes([IsPortfolioOwnerOrReadOnly, IsPortfolioOwnerOrEditorOrReadOnly])
 def award_detail(request, award_id):
     award = get_object_or_404(Award.objects.prefetch_related('starred_by'), id=award_id)
     if request.method in ('GET', 'HEAD'):
