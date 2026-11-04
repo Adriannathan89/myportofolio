@@ -191,6 +191,15 @@ python manage.py test main
 python manage.py test main.tests.test_api
 ```
 
+### Memeriksa lint Python
+
+Pasang dependensi pengembangan dan jalankan Ruff dari root project:
+
+```bash
+python -m pip install -r requirements-dev.txt
+ruff check .
+```
+
 ### Menjalankan Selenium E2E
 
 Selenium menguji CSRF dan login/logout, larangan create/delete Award dan create/update/delete Experience untuk akun biasa, akses form Award dan Experience oleh superuser, serta alur star/unstar Award.

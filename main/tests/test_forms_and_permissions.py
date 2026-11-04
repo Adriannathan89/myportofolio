@@ -286,7 +286,7 @@ class AuthenticationAuthorizationTest(TestCase):
     def test_editor_sees_only_update_controls(self):
         self.user.groups.add(Group.objects.get(name="Editor"))
         self.client.force_login(self.user)
-        award = Award.objects.create(title="Visible award", date_received="2026-09-16")
+        Award.objects.create(title="Visible award", date_received="2026-09-16")
         experience = Experience.objects.create(title="Visible experience")
 
         award_page = self.client.get(reverse("main:show_award"))

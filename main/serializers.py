@@ -37,8 +37,8 @@ class AwardSerializer(serializers.ModelSerializer):
             return value
         try:
             parsed = urlsplit(value)
-        except ValueError:
-            raise serializers.ValidationError('Use a local path or an http(s) URL.')
+        except ValueError as error:
+            raise serializers.ValidationError('Use a local path or an http(s) URL.') from error
         if parsed.scheme.lower() not in {'http', 'https'} or not parsed.netloc or '\\' in value:
             raise serializers.ValidationError('Use a local path or an http(s) URL.')
         return value

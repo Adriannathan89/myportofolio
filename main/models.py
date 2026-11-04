@@ -1,7 +1,9 @@
+import uuid
+
+from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth.models import User
-import uuid
+
 
 # Create your models here.
 class Experience(models.Model):

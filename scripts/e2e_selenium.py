@@ -10,11 +10,13 @@ from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 from selenium import webdriver
-from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    WebDriverException,
+)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -49,6 +51,7 @@ django.setup()
 
 from django.conf import settings  # noqa: E402
 from django.contrib.auth.models import User  # noqa: E402
+
 from main.models import Award, Experience  # noqa: E402
 
 database = settings.DATABASES["default"]
