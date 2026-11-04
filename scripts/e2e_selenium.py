@@ -282,7 +282,7 @@ def main():
         print("[PASS] Login user biasa dan cookie sesi berhasil")
 
         # 3. Akun biasa tidak dapat membuat Award/Experience atau mengubah Experience.
-        assert_forbidden(driver, "/award/add/")
+        assert_post_forbidden(driver, "/award/add/")
         assert_forbidden(driver, "/experience/add/")
         assert_forbidden(driver, f"/experience/{test_experience.pk}/")
         assert_post_forbidden(driver, f"/experience/{test_experience.pk}/delete/")
@@ -324,9 +324,11 @@ def main():
         login(driver, wait, "admin_test", ADMIN_PASSWORD)
         assert driver.find_element(By.LINK_TEXT, "admin_test").is_displayed()
 
-        driver.get(f"{BASE_URL}/award/add/")
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "form.award-form")))
-        wait.until(EC.presence_of_element_located((By.NAME, "title")))
+        driver.get(f"{BASE_URL}/award/")
+        add_award = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '[popovertarget="add-award-modal"]')))
+        click_element(driver, wait, add_award)
+        award_form = wait.until(EC.visibility_of_element_located((By.ID, "award-form")))
+        assert award_form.find_element(By.NAME, "title").is_displayed()
 
         driver.get(f"{BASE_URL}/experience/add/")
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "form.award-form")))
