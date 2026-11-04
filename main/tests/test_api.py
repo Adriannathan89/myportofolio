@@ -58,6 +58,11 @@ class AwardAPITest(APITestCase):
         self.visitor.groups.add(Group.objects.get(name='Editor'))
         self.client.force_authenticate(self.visitor)
         self.assertEqual(self.client.patch(self.detail_url, {'title': 'Edited'}, format='json').status_code, 200)
+        self.award.refresh_from_db()
+        self.assertEqual(self.award.title, 'Edited')
+        self.assertEqual(self.client.put(self.detail_url, self.payload, format='json').status_code, 200)
+        self.award.refresh_from_db()
+        self.assertEqual(self.award.title, 'Prize')
         self.assertEqual(self.client.post(self.list_url, self.payload, format='json').status_code, 403)
         self.assertEqual(self.client.delete(self.detail_url).status_code, 403)
 

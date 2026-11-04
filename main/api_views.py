@@ -10,7 +10,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from main.models import Award
-from main.permissions import IsPortfolioOwnerOrReadOnly, IsPortfolioOwnerOrEditorOrReadOnly
+from main.permissions import (
+    IsPortfolioOwnerOrEditorOrReadOnly,
+    IsPortfolioOwnerOrReadOnly,
+)
 from main.serializers import AwardSerializer
 
 
