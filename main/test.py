@@ -189,8 +189,8 @@ class MainTest(TestCase):
         self.assertContains(response, "award-delete-modal")
         self.assertContains(response, "const DELETE_AWARD_URL =")
         self.assertNotContains(response, 'name="action_key"')
-        api_response = self.client.get(reverse("main:get_awards_json"))
-        self.assertIn(str(award.pk), [item["pk"] for item in api_response.json()])
+        api_response = self.client.get(reverse("api:award_list"))
+        self.assertIn(str(award.pk), [item["id"] for item in api_response.json()])
 
     def test_award_form_accepts_relative_thumbnail_path(self):
         response = self.client.post(
@@ -227,11 +227,11 @@ class MainTest(TestCase):
         response = self.client.get(reverse("main:show_award"))
 
         self.assertContains(response, "const HAS_DELETE_AWARD = \"true\" === \"true\";")
-        self.assertContains(response, "function buildAwardDeleteButton")
+        self.assertContains(response, 'id="award-update-delete"')
         self.assertContains(response, "function buildAwardDeleteModal")
         self.assertContains(response, "const DELETE_AWARD_URL =")
-        api_response = self.client.get(reverse("main:get_awards_json"))
-        self.assertIn(str(award.pk), [item["pk"] for item in api_response.json()])
+        api_response = self.client.get(reverse("api:award_list"))
+        self.assertIn(str(award.pk), [item["id"] for item in api_response.json()])
 
     def test_delete_award_removes_award_and_redirects_to_awards(self):
         award = Award.objects.create(
