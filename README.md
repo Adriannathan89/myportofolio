@@ -184,8 +184,11 @@ Perintah ini bersifat destruktif dan berlaku pada database yang dipilih oleh kon
 
 ### Menjalankan Test
 
+Test Django tersimpan di `main/tests/`. Jalankan seluruh test aplikasi atau test API saja:
+
 ```bash
-python manage.py test
+python manage.py test main
+python manage.py test main.tests.test_api
 ```
 
 ### Menjalankan Selenium E2E

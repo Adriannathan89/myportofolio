@@ -35,7 +35,7 @@ class MainTest(TestCase):
         self.assertContains(response, f'href="{reverse("main:show_experience")}"')
 
     def test_main_page_does_not_render_experience_section(self):
-        template_path = Path(__file__).resolve().parent.parent / "templates" / "index.html"
+        template_path = Path(__file__).resolve().parents[2] / "templates" / "index.html"
         template = template_path.read_text()
 
         self.assertNotIn('<section id="experience"', template)
@@ -43,7 +43,7 @@ class MainTest(TestCase):
         self.assertNotIn("Fullstack Developer at DDP0", template)
 
     def test_experience_seed_script_declares_required_records(self):
-        script_path = Path(__file__).resolve().parent.parent / "scripts" / "seed_experience.sh"
+        script_path = Path(__file__).resolve().parents[2] / "scripts" / "seed_experience.sh"
         self.assertTrue(script_path.is_file(), f"Expected seed script at {script_path}")
         if not script_path.is_file():
             return
@@ -57,7 +57,7 @@ class MainTest(TestCase):
         self.assertIn('"keyfeatures"', script)
 
     def test_award_seed_script_declares_required_records(self):
-        script_path = Path(__file__).resolve().parent.parent / "scripts" / "seed_award.sh"
+        script_path = Path(__file__).resolve().parents[2] / "scripts" / "seed_award.sh"
         self.assertTrue(script_path.is_file(), f"Expected award seed script at {script_path}")
         if not script_path.is_file():
             return
@@ -261,7 +261,7 @@ class MainTest(TestCase):
         self.assertTrue(Award.objects.filter(pk=award.id).exists())
 
     def test_award_grid_aligns_cards_to_their_content(self):
-        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet_path = Path(__file__).resolve().parents[2] / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
 
         self.assertIn(
@@ -276,7 +276,7 @@ class MainTest(TestCase):
         )
 
     def test_award_cards_have_fixed_dimensions_and_keep_thumbnail_top_visible(self):
-        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet_path = Path(__file__).resolve().parents[2] / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
 
         self.assertIn("height: 500px;", stylesheet)
@@ -290,7 +290,7 @@ class MainTest(TestCase):
         self.assertIn("object-position: top;", stylesheet)
 
     def test_award_delete_action_is_pinned_to_the_card_bottom_right(self):
-        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet_path = Path(__file__).resolve().parents[2] / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
 
         card_start = stylesheet.index(".award-grid .award-card {")
@@ -540,7 +540,7 @@ class MainTest(TestCase):
         self.assertIn("gridContainer.appendChild(buildExperienceCard(item))", content)
 
     def test_experience_styles_define_responsive_font_sizes(self):
-        stylesheet_path = Path(__file__).resolve().parent.parent / "static" / "css" / "style.css"
+        stylesheet_path = Path(__file__).resolve().parents[2] / "static" / "css" / "style.css"
         stylesheet = stylesheet_path.read_text()
 
         self.assertIn("@media (max-width: 900px)", stylesheet)
