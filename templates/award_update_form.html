@@ -8,7 +8,7 @@
     <section class="award-form-section" id="award-update-form">
         <div class="container">
             <h1 class="menu-title">Update Award</h1>
-            <form method="post" class="award-form" action="{% url 'main:update_award' award.id %}">
+            <form method="post" class="award-form" action="{% url 'api:award_detail' award.id %}" data-api-method="PATCH">
                 {% csrf_token %}
                 {% for field in form %}
                     <div class="form-group">
@@ -31,4 +31,5 @@
         </div>
     </section>
 </main>
+{% include 'include/rest_form_script.html' %}
 {% endblock content %}

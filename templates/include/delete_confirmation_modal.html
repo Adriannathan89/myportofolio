@@ -17,7 +17,7 @@
     </button>
     <h2 id="{{ title_id_prefix }}-{{ target_id }}">{{ modal_title }}</h2>
     <p>Are you sure you want to delete <strong>{{ object_title }}</strong>?</p>
-    <form method="post" action="{% url target_url_name target_id %}" class="award-delete-form">
+    <form method="post" action="{% url target_url_name target_id %}" class="award-delete-form" {% if api_method %}data-api-method="{{ api_method }}"{% endif %}>
         {% csrf_token %}
         <div class="award-delete-modal__actions">
             <button

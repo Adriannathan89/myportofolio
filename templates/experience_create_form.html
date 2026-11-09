@@ -8,7 +8,7 @@
     <section class="award-form-section" id="experience-create-form">
         <div class="container">
             <h1 class="menu-title">Add Experience</h1>
-            <form method="post" class="award-form" action="{% url 'main:create_experience' %}">
+            <form method="post" class="award-form" action="{% url 'api:experience_list' %}" data-api-method="POST" data-experience>
                 {% csrf_token %}
                 {% for field in form %}
                     <div class="form-group">
@@ -31,4 +31,5 @@
         </div>
     </section>
 </main>
+{% include 'include/rest_form_script.html' %}
 {% endblock content %}

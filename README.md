@@ -332,6 +332,32 @@ Proses serialisasi diperlukan karena hasil query database tadi berbentuk `QueryS
 
 data yang ditampilkan melalui ajax lebih rentan karena sanitasi input pada ajax sepenuhnya menjadi tanggung jawab pengembang, berbeda dengan django template yang sudah memiliki default escaping seperti `<` menjadi `&lt;`. lalu dari cara merendernya, pada django template teks dirender sebagai teks biasa sedangkan di ajax, akan diperlakukan sebagai HTML.
 
+### Assignment 6
+1. REST (Representational State Transfer) adalah gaya arsitektur (architectural style) untuk merancang sistem terdistribusi, dikemukakan oleh Roy Fielding dalam disertasi doktoralnya pada tahun 2000. REST merupakan standar atau batasan yang jika dipatuhi akan menghasilkan sistem yang scaleable, sederhana, dan mudah berevolusi. 
+
+batasan-batasan yang perlu diterapkan untuk membuat REST diantaranya:
+* Client-Server: pemisahan tanggung jawab antara antarmuka (klien) dan penyimpanan data/logika (server), sehingga keduanya bisa berkembang independen.
+
+* Stateless: setiap request harus membawa semua informasi yang dibutuhkan server untuk memprosesnya. Server tidak menyimpan session state klien di antara request (misalnya otentikasi dikirim lewat token di setiap request).
+
+* Cacheable: respons harus menyatakan apakah boleh di-cache atau tidak (misalnya lewat header Cache-Control, ETag).
+
+* Uniform Interface: antarmuka yang seragam antar komponen. Ini batasan paling khas REST (dijelaskan di bawah).
+
+* Layered System: klien tidak perlu tahu apakah ia terhubung langsung ke server akhir atau melalui perantara (load balancer, proxy, gateway, CDN).
+* Code on Demand (opsional): server dapat mengirim kode yang dapat dieksekusi klien (misalnya JavaScript).
+
+`PUT` dan `PATCH` keduanya digunakan untuk memperbaharui resource tetapi `PUT` lebih cocok digunakan jika data yang diperbaharui ditimpa sepenuhnya dengan data yang baru sedangan `PATCH` digunakan untuk memberbaharui sebagain data dari existing data.
+
+2. Serializer adalah lapisan yang menerjemahkan, memvalidasi, dan menyimpan data antara model Django dan JSON. Dibandingkan membuat dictionary manual seperti saat di tutorial 05, serializer memberi kode yang lebih ringkas, abstraksi untuk validasi dan format error yang konsisten, penanganan relasi dan tipe data otomatis, kontrol keamanan field yang eksplisit, serta kompatibilitas penuh dengan fitur DRF lainnya.
+
+3. Authentikasi digunakan untuk memvalidasi identitas, sedangkan otorisasi digunakan untuk mengatur batasan resource mana saya yang boleh untuk identitias tertentu. Hanya menyembunyikan tombol di template tidak menjamin user tidak boleh mengambil apa yang tidak boleh bagi mereka melalui server. Server yang harusnya menjadi single of truth bagi sebuah sistem, harusnya ditetapkan hak akses mana yang boleh untuk membaca dan merubah resource ke server.
+
+4. 
+Dengan `SessionAuthentication`, identitas pengguna dibuktikan lewat cookie sesi, dan browser otomatis menyertakan cookie itu di setiap request ke domain tersebut, termasuk request yang dijalankan oleh situs lain. Akibatnya, situs jahat dapat membuat browser korban mengirim POST/PUT/DELETE ke server dan server akan menganggapnya sah karena cookie sesinya valid. Token `CSRF` menutup celah ini karena nilainya harus dikirim lewat header (X-CSRFToken) atau form, dan situs lain tidak bisa membaca atau menebaknya karena same-origin policy. DRF hanya menegakkan pemeriksaan ini di `SessionAuthentication`, sedangkan TokenAuthentication atau JWT tidak memerlukannya karena kredensialnya tidak dikirim otomatis oleh browser.
+
+Test dengan force_authenticate tidak cukup karena method ini melewati seluruh proses autentikasi, termasuk SessionAuthentication.enforce_csrf(), sehingga request dianggap sudah terautentikasi tanpa pernah diperiksa token CSRF-nya. Test tersebut akan lulus meski perlindungan `CSRF` rusak atau dimatikan. Untuk membuktikannya, gunakan APIClient(enforce_csrf_checks=True) dengan login sesi sungguhan (client.login(...)), lalu pastikan request tanpa token ditolak dengan 403 dan request dengan token yang valid diterima.
+
 ### AI Disclosure
 
 ## Assignment 1
@@ -378,3 +404,9 @@ data yang ditampilkan melalui ajax lebih rentan karena sanitasi input pada ajax 
 * dengan pendekatan ini, perbaikan yang saya lakukan secara manual dibilang cukup minim, saya melakuakan perbaikan terhadap button delete yang tidak muncul di modal update lalu mennghapus delete button di card award yang redundant.
 
 * Model AI yang digunakan GPT-6.1-sol (Medium)
+
+## Assignment 6
+* pada assignment 6, saya menggunnakan ai untuk melakukan migration terhadap exisiting ajax yang masih meminta request melalui view biasa untuk mengguanakan rest view 
+* tanpa karena data contoh pemindahannya sudah ada dari tutorial, saya jadi tidak perlu melakukan perbaikan manual
+
+* Model AI yang digunakan GPT-6.1-terra (Medium)

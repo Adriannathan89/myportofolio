@@ -131,7 +131,7 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
         submit = self.driver.find_element(By.CSS_SELECTOR, '#experience-create-form button[type="submit"]')
         submit.click()
         self.wait.until(lambda driver: driver.find_element(By.ID, "toast-title").text == "Failed to add experience")
-        self.assertIn("JSON array", self.driver.find_element(By.ID, "toast-message").text)
+        self.assertIn("list", self.driver.find_element(By.ID, "toast-message").text)
         self.assertEqual(self.driver.find_element(By.ID, "id_create-title").get_attribute("value"), "Added via AJAX")
         self.assertTrue(self.driver.execute_script('return document.getElementById("add-experience-modal").matches(":popover-open")'))
         self.fill("id_create-keyfeatures", '["<b>New feature</b>"]')
@@ -158,12 +158,12 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
             self.fill("id_update-title", "<b></b>")
             submit.click()
             self.wait.until(lambda driver: driver.find_element(By.ID, "toast-title").text == "Failed to update experience")
-            self.assertIn("HTML tags", self.driver.find_element(By.ID, "toast-message").text)
+            self.assertIn("empty", self.driver.find_element(By.ID, "toast-message").text)
             self.fill("id_update-title", "Updated by " + user.username)
             # A lost network connection retains values and re-enables submission.
             self.driver.execute_script('window.savedFetch = window.fetch; window.fetch = () => Promise.reject(new TypeError("offline"));')
             submit.click()
-            self.wait.until(lambda driver: "Could not reach" in driver.find_element(By.ID, "toast-message").text)
+            self.wait.until(lambda driver: "offline" in driver.find_element(By.ID, "toast-message").text)
             self.wait.until(lambda driver, submit=submit: submit.is_enabled())
             self.assertEqual(self.driver.find_element(By.ID, "id_update-title").get_attribute("value"), "Updated by " + user.username)
             self.driver.execute_script("window.fetch = window.savedFetch;")
@@ -182,7 +182,7 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
         self.fill("id_create-title", "Research saved before refresh failure")
         self.driver.execute_script('''
             window.savedFetch = window.fetch;
-            window.fetch = (...args) => String(args[0]).includes("/api/experiences/")
+            window.fetch = (...args) => String(args[0]).includes("/api/v1/experiences/") && (!args[1]?.method || args[1].method === "GET")
                 ? Promise.resolve(new Response("unavailable", {status: 500}))
                 : window.savedFetch(...args);
         ''')
@@ -197,6 +197,102 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
         self.driver.execute_script('window.fetch = window.savedFetch; loadExperiences("Research");')
         self.wait.until(lambda driver: len(driver.find_elements(By.CSS_SELECTOR, ".experience-card")) == 2)
         self.assertFalse(self.driver.find_element(By.ID, "error").is_displayed())
+
+    def test_experience_star_without_reload(self):
+        self.visit("/experience/", self.regular)
+        url = self.driver.current_url
+        self.driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").click()
+        modal = self.driver.find_element(By.CSS_SELECTOR, ".experience-card .award-star-modal")
+        self.assertTrue(modal.is_displayed())
+        self.assertIn("Research internship", modal.text)
+        self.assertFalse(self.experience.starred_by.exists())
+        modal.find_element(By.CSS_SELECTOR, ".cancel-button").click()
+        self.assertFalse(self.experience.starred_by.exists())
+        self.driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").click()
+        modal.find_element(By.CSS_SELECTOR, ".star-confirm-button").click()
+        self.wait.until(lambda driver: "Unstar" in driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").text)
+        self.assert_same_page(url)
+        self.assertTrue(self.experience.starred_by.filter(pk=self.regular.pk).exists())
+        self.driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").click()
+        self.assertIn("Remove your star", modal.text)
+        modal.find_element(By.CSS_SELECTOR, ".star-confirm-button").click()
+        self.wait.until(lambda driver: "Unstar" not in driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").text)
+        self.assertFalse(self.experience.starred_by.exists())
+
+    def test_standalone_experience_edit_uses_rest_patch_without_navigation(self):
+        self.visit("/experience/", self.admin)
+        self.driver.get(self.live_server_url + f"/experience/{self.experience.pk}/")
+        self.driver.execute_script('''
+            window.pageIdentity = "same-page";
+            window.fetchCalls = [];
+            window.savedFetch = window.fetch;
+            window.fetch = (...args) => {
+                window.fetchCalls.push({url: String(args[0]), method: args[1]?.method || "GET"});
+                return window.savedFetch(...args);
+            };
+        ''')
+        self.fill("id_title", "Updated via REST")
+        self.driver.execute_script('document.querySelector("form.award-form").requestSubmit()')
+        self.wait.until(lambda driver: Experience.objects.filter(pk=self.experience.pk, title="Updated via REST").exists())
+        self.assertEqual(self.driver.execute_script("return window.pageIdentity"), "same-page")
+        calls = self.driver.execute_script("return window.fetchCalls")
+        self.assertEqual(calls[0]["method"], "PATCH")
+        self.assertIn("/api/v1/experiences/", calls[0]["url"])
+
+    def test_standalone_experience_create_and_delete_use_rest(self):
+        self.visit("/experience/", self.admin)
+        self.driver.get(self.live_server_url + "/experience/add/")
+        self.driver.execute_script('window.pageIdentity = "same-page";')
+        self.fill("id_title", "Created via REST")
+        self.driver.execute_script('document.querySelector("form.award-form").requestSubmit()')
+        self.wait.until(lambda driver: Experience.objects.filter(title="Created via REST").exists())
+        self.assertEqual(self.driver.execute_script("return window.pageIdentity"), "same-page")
+        self.driver.get(self.live_server_url + f"/experience/{self.experience.pk}/")
+        self.driver.execute_script('window.pageIdentity = "same-page";')
+        self.driver.execute_script('document.querySelector(".delete-button").click()')
+        self.driver.execute_script('document.querySelector("form.award-delete-form").requestSubmit()')
+        self.wait.until(lambda driver: not Experience.objects.filter(pk=self.experience.pk).exists())
+        self.assertEqual(self.driver.execute_script("return window.pageIdentity"), "same-page")
+
+    def test_search_keeps_existing_results_visible_while_fetching(self):
+        for path, loader, card in (("/experience/", "loadExperiences", ".experience-card"),
+                                   ("/award/", "loadAwards", ".award-card")):
+            with self.subTest(path=path):
+                self.visit(path)
+                self.driver.execute_script('''
+                    window.savedFetch = window.fetch;
+                    window.fetch = (...args) => new Promise(resolve => {
+                        window.releaseFetch = () => resolve(window.savedFetch(...args));
+                    });
+                ''')
+                self.driver.execute_script(f'{loader}("Research");')
+                self.assertTrue(self.driver.find_element(By.CSS_SELECTOR, card).is_displayed())
+                self.driver.execute_script('window.releaseFetch();')
+                self.wait.until(lambda driver: driver.execute_script(
+                    "return !document.querySelector(arguments[0]).classList.contains('empty-state-hidden')",
+                    "#loading" if path == "/experience/" else "#award-loading") is False)
+
+    def test_star_updates_without_refetching_list(self):
+        for path, selector in (("/experience/", ".experience-card .button-star"),
+                               ("/award/", ".award-card .button-star")):
+            with self.subTest(path=path):
+                self.visit(path, self.regular)
+                self.driver.execute_script('''
+                    window.fetchCalls = [];
+                    window.savedFetch = window.fetch;
+                    window.fetch = (...args) => {
+                        window.fetchCalls.push({url: String(args[0]), method: args[1]?.method || "GET"});
+                        return window.savedFetch(...args);
+                    };
+                ''')
+                self.driver.find_element(By.CSS_SELECTOR, selector).click()
+                self.wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, ".star-confirm-button").is_displayed())
+                self.driver.find_element(By.CSS_SELECTOR, ".star-confirm-button").click()
+                self.wait.until(lambda driver: driver.execute_script(
+                    "return document.querySelector(arguments[0])?.textContent.includes('Unstar')", selector))
+                calls = self.driver.execute_script("return window.fetchCalls")
+                self.assertEqual([call["method"] for call in calls], ["POST"])
+                self.assertEqual(self.driver.execute_script("return window.pageIdentity"), "same-page")
 
     def test_experience_edit_modal_delete_targets_selected_item_and_requires_permission(self):
         other = Experience.objects.create(title="Other experience")

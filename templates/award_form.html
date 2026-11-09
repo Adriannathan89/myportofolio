@@ -11,7 +11,7 @@
             <form 
                 method="post" 
                 class="award-form"
-                action="{% url 'main:create_award' %}"
+                action="{% url 'api:award_list' %}" data-api-method="POST"
             >
                 {% csrf_token %}
                 {% for field in form %}
@@ -35,4 +35,5 @@
         </div>
     </section>
 </main>
+{% include 'include/rest_form_script.html' %}
 {% endblock content %}
