@@ -131,7 +131,7 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
         submit = self.driver.find_element(By.CSS_SELECTOR, '#experience-create-form button[type="submit"]')
         submit.click()
         self.wait.until(lambda driver: driver.find_element(By.ID, "toast-title").text == "Failed to add experience")
-        self.assertIn("JSON array", self.driver.find_element(By.ID, "toast-message").text)
+        self.assertIn("list", self.driver.find_element(By.ID, "toast-message").text)
         self.assertEqual(self.driver.find_element(By.ID, "id_create-title").get_attribute("value"), "Added via AJAX")
         self.assertTrue(self.driver.execute_script('return document.getElementById("add-experience-modal").matches(":popover-open")'))
         self.fill("id_create-keyfeatures", '["<b>New feature</b>"]')
@@ -158,12 +158,12 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
             self.fill("id_update-title", "<b></b>")
             submit.click()
             self.wait.until(lambda driver: driver.find_element(By.ID, "toast-title").text == "Failed to update experience")
-            self.assertIn("HTML tags", self.driver.find_element(By.ID, "toast-message").text)
+            self.assertIn("empty", self.driver.find_element(By.ID, "toast-message").text)
             self.fill("id_update-title", "Updated by " + user.username)
             # A lost network connection retains values and re-enables submission.
             self.driver.execute_script('window.savedFetch = window.fetch; window.fetch = () => Promise.reject(new TypeError("offline"));')
             submit.click()
-            self.wait.until(lambda driver: "Could not reach" in driver.find_element(By.ID, "toast-message").text)
+            self.wait.until(lambda driver: "offline" in driver.find_element(By.ID, "toast-message").text)
             self.wait.until(lambda driver, submit=submit: submit.is_enabled())
             self.assertEqual(self.driver.find_element(By.ID, "id_update-title").get_attribute("value"), "Updated by " + user.username)
             self.driver.execute_script("window.fetch = window.savedFetch;")
@@ -182,7 +182,7 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
         self.fill("id_create-title", "Research saved before refresh failure")
         self.driver.execute_script('''
             window.savedFetch = window.fetch;
-            window.fetch = (...args) => String(args[0]).includes("/api/experiences/")
+            window.fetch = (...args) => String(args[0]).includes("/api/v1/experiences/") && (!args[1]?.method || args[1].method === "GET")
                 ? Promise.resolve(new Response("unavailable", {status: 500}))
                 : window.savedFetch(...args);
         ''')
@@ -197,6 +197,17 @@ class AjaxBrowserCheck(StaticLiveServerTestCase):
         self.driver.execute_script('window.fetch = window.savedFetch; loadExperiences("Research");')
         self.wait.until(lambda driver: len(driver.find_elements(By.CSS_SELECTOR, ".experience-card")) == 2)
         self.assertFalse(self.driver.find_element(By.ID, "error").is_displayed())
+
+    def test_experience_star_without_reload(self):
+        self.visit("/experience/", self.regular)
+        url = self.driver.current_url
+        self.driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").click()
+        self.wait.until(lambda driver: "Unstar" in driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").text)
+        self.assert_same_page(url)
+        self.assertTrue(self.experience.starred_by.filter(pk=self.regular.pk).exists())
+        self.driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").click()
+        self.wait.until(lambda driver: "Unstar" not in driver.find_element(By.CSS_SELECTOR, ".experience-card .button-star").text)
+        self.assertFalse(self.experience.starred_by.exists())
 
     def test_experience_edit_modal_delete_targets_selected_item_and_requires_permission(self):
         other = Experience.objects.create(title="Other experience")

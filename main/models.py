@@ -25,6 +25,7 @@ class Experience(models.Model):
     ended_at = models.DateField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now, blank=True, null=True)
     updated_at = models.DateTimeField(default=timezone.now, blank=True, null=True)
+    starred_by = models.ManyToManyField(User, related_name="starred_experiences", blank=True)
 
     def __str__(self):
         return self.title

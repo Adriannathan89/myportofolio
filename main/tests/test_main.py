@@ -489,18 +489,18 @@ class MainTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "experience.html")
         self.assertContains(response, 'id="grid"')
-        self.assertContains(response, 'const BASE_EXPERIENCE_URL = "/api/experiences/";')
+        self.assertContains(response, 'const BASE_EXPERIENCE_URL = "/api/v1/experiences/";')
         self.assertContains(response, f'href="{reverse("main:show_main")}"')
 
         api_item = next(
             item
-            for item in self.client.get(reverse("main:get_experience_json")).json()
-            if item["pk"] == str(self.experience.pk)
+            for item in self.client.get(reverse("api:experience_list")).json()
+            if item["id"] == str(self.experience.pk)
         )
-        self.assertEqual(api_item["fields"]["title"], self.experience.title)
-        self.assertEqual(api_item["fields"]["description"], self.experience.description)
-        self.assertEqual(api_item["fields"]["category_display"], "Part-Time")
-        self.assertTrue(api_item["fields"]["is_ongoing"])
+        self.assertEqual(api_item["title"], self.experience.title)
+        self.assertEqual(api_item["description"], self.experience.description)
+        self.assertEqual(api_item["category_display"], "Part-Time")
+        self.assertTrue(api_item["is_ongoing"])
 
     def test_experience_page_renders_all_experience_fields(self):
         keyfeatures = [
