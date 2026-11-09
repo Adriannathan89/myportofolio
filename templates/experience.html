@@ -130,29 +130,7 @@
             : `Completed: ${startDate} - ${formatExperienceDate(experience.ended_at)}`;
         cardElement.appendChild(statusElement);
 
-        if (IS_AUTHENTICATED) {
-            const star = document.createElement("button");
-            star.type = "button";
-            star.className = `button-star${experience.is_starred ? " is-starred" : ""}`;
-            star.textContent = `${experience.is_starred ? "Unstar" : "Star"} ★ ${experience.star_count}`;
-            star.addEventListener("click", async () => {
-                star.disabled = true;
-                try {
-                    await writeExperience(experienceUrl(STAR_EXPERIENCE_URL, experienceId), "POST");
-                    await loadExperiences(searchInput.value.trim());
-                } catch (error) {
-                    showToast("Failed to star experience", error.message, "error");
-                    star.disabled = false;
-                }
-            });
-            cardElement.appendChild(star);
-        } else {
-            const login = document.createElement("a");
-            login.className = "button-star button-star--login";
-            login.href = "{% url 'main:login' %}";
-            login.textContent = `Log in to star ★ ${experience.star_count}`;
-            cardElement.appendChild(login);
-        }
+        cardElement.appendChild(buildExperienceStar(experience, experienceId));
 
         if (HAS_CHANGE_EXPERIENCE) {
             const editButton = document.createElement("button");
@@ -166,6 +144,104 @@
         timelineItem.appendChild(cardElement);
 
         return timelineItem;
+    }
+
+    function buildExperienceStar(experience, experienceId) {
+        const container = document.createElement("div");
+        container.className = "experience-star-actions";
+        const star = document.createElement(IS_AUTHENTICATED ? "button" : "a");
+        star.className = "button-star";
+        if (IS_AUTHENTICATED) {
+            star.type = "button";
+            star.setAttribute("popovertarget", `star-experience-${experienceId}`);
+        } else {
+            star.classList.add("button-star--login");
+            star.href = "{% url 'main:login' %}";
+        }
+        const icon = document.createElement("span");
+        icon.className = "star-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "★";
+        const label = document.createElement("span");
+        const count = document.createElement("span");
+        count.className = "star-count";
+        star.append(icon, label, count);
+        container.appendChild(star);
+
+        let heading, message, confirm;
+        function updateStarDisplay() {
+            star.classList.toggle("is-starred", experience.is_starred);
+            label.textContent = IS_AUTHENTICATED ? (experience.is_starred ? "Unstar" : "Star") : "Log in to star";
+            count.textContent = Number(experience.star_count) || 0;
+            star.setAttribute("aria-label", IS_AUTHENTICATED
+                ? `${experience.is_starred ? "Unstar" : "Star"} ${experience.title || "experience"}`
+                : "Log in to star this experience");
+            if (heading) {
+                heading.textContent = experience.is_starred ? "Remove your star?" : "Star this experience?";
+                message.firstChild.textContent = experience.is_starred
+                    ? "Are you sure you want to remove your star from "
+                    : "Are you sure you want to give a star to ";
+                confirm.textContent = experience.is_starred ? "Unstar" : "Give Star";
+            }
+        }
+
+        if (IS_AUTHENTICATED) {
+            const modal = document.createElement("div");
+            modal.id = `star-experience-${experienceId}`;
+            modal.className = "award-star-modal";
+            modal.setAttribute("popover", "auto");
+            modal.setAttribute("role", "dialog");
+            modal.setAttribute("aria-modal", "true");
+            modal.setAttribute("aria-labelledby", `star-experience-title-${experienceId}`);
+            const close = document.createElement("button");
+            close.type = "button";
+            close.className = "award-star-modal__close";
+            close.setAttribute("popovertarget", modal.id);
+            close.setAttribute("popovertargetaction", "hide");
+            close.setAttribute("aria-label", "Close star confirmation");
+            close.textContent = "×";
+            heading = document.createElement("h2");
+            heading.id = `star-experience-title-${experienceId}`;
+            message = document.createElement("p");
+            const title = document.createElement("strong");
+            title.textContent = experience.title || "this experience";
+            message.append(document.createTextNode(""), title, "?");
+            const form = document.createElement("form");
+            form.className = "award-star-modal__form";
+            const actions = document.createElement("div");
+            actions.className = "award-star-modal__actions";
+            const cancel = document.createElement("button");
+            cancel.type = "button";
+            cancel.className = "cancel-button";
+            cancel.setAttribute("popovertarget", modal.id);
+            cancel.setAttribute("popovertargetaction", "hide");
+            cancel.textContent = "Cancel";
+            confirm = document.createElement("button");
+            confirm.type = "submit";
+            confirm.className = "star-confirm-button";
+            actions.append(cancel, confirm);
+            form.appendChild(actions);
+            modal.append(close, heading, message, form);
+            container.appendChild(modal);
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                confirm.disabled = true;
+                try {
+                    const updated = await writeExperience(experienceUrl(STAR_EXPERIENCE_URL, experienceId), "POST");
+                    experience.is_starred = updated.is_starred;
+                    experience.star_count = updated.star_count;
+                    updateStarDisplay();
+                    modal.hidePopover();
+                    showToast("Success", "Star updated.", "success");
+                } catch (error) {
+                    showToast("Failed to star experience", error.message, "error");
+                } finally {
+                    confirm.disabled = false;
+                }
+            });
+        }
+        updateStarDisplay();
+        return container;
     }
 
     function formatExperienceDate(dateValue) {
@@ -215,7 +291,7 @@
         requestUrl.searchParams.set("title", title);
 
         try {
-            displayPageSection({ showLoading: true });
+            displayPageSection({ showLoading: true, showGrid: !gridContainer.classList.contains("empty-state-hidden") });
 
             const response = await fetch(requestUrl, {
                 headers: { Accept: "application/json" },

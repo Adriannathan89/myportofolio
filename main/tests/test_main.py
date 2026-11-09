@@ -382,7 +382,8 @@ class MainTest(TestCase):
         self.assertContains(response, "Delete")
         self.assertContains(response, f'popovertarget="delete-experience-{self.experience.id}"')
         self.assertContains(response, 'role="dialog"')
-        self.assertContains(response, f'action="/experience/{self.experience.id}/delete/"')
+        self.assertContains(response, f'action="/api/v1/experiences/{self.experience.id}/"')
+        self.assertContains(response, 'data-api-method="DELETE"')
 
     def test_update_experience_saves_valid_submission(self):
         response = self.client.post(

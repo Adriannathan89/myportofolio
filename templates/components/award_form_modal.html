@@ -20,7 +20,7 @@
         <h2 id="add-award-modal-title">Add a New Award</h2>
         <form id="award-form"
               method="post"
-              action="{% url 'main:create_award' %}"
+              action="{% url 'api:award_list' %}"
               class="project-form">
             {% csrf_token %}
             {% for field in form %}

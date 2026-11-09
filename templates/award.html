@@ -348,7 +348,7 @@
         requestUrl.searchParams.set("title", title);
 
         try {
-            displayAwardState({ showLoading: true });
+            displayAwardState({ showLoading: true, showGrid: !awardGrid.classList.contains("empty-state-hidden") });
             const response = await fetch(requestUrl, {
                 headers: { Accept: "application/json" },
                 signal: requestController.signal,
@@ -515,11 +515,15 @@
         button.disabled = true;
         const isStar = form.dataset.action === "star";
         try {
-            await writeAward(replaceAwardId(isStar ? TOGGLE_STAR_AWARD_URL : DELETE_AWARD_URL,
+            const updated = await writeAward(replaceAwardId(isStar ? TOGGLE_STAR_AWARD_URL : DELETE_AWARD_URL,
                 form.dataset.id), isStar ? "POST" : "DELETE");
             form.closest("[popover]").hidePopover();
             showToast("Success", isStar ? "Star updated." : "Award deleted.", "success");
-            await loadAwards(awardSearchInput.value.trim());
+            if (isStar) {
+                form.closest(".award-card").replaceWith(buildAwardCard(updated));
+            } else {
+                await loadAwards(awardSearchInput.value.trim());
+            }
         } catch (error) {
             showToast("Request failed", error.message, "error");
         } finally {
