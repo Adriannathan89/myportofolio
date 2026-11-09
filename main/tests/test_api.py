@@ -145,7 +145,9 @@ class AwardAPITest(APITestCase):
         self.award.refresh_from_db()
         self.assertEqual(self.award.title, "New award")
         self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, 403)
+        self.assertEqual(Award.objects.count(), 1)
         self.assertEqual(self.client.delete(self.detail_url).status_code, 403)
+        self.assertTrue(Award.objects.filter(pk=self.award.pk, title="New award").exists())
 
     def test_wrong_method(self):
         self.client.force_authenticate(user=self.owner)
