@@ -6,6 +6,7 @@ from rest_framework import serializers
 from main.models import (
     Award,
     Experience,
+    Project,
 )
 
 
@@ -103,3 +104,22 @@ class ExperienceSerializer(serializers.ModelSerializer):
         if start_at and ended_at and start_at > ended_at:
             raise serializers.ValidationError('Start date cannot be after end date.')
         return attrs
+
+
+class ProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['id', 'title', 'description', 'tech_stack', 'project_url', 'project_image_url']
+        read_only_fields = ['id']
+
+    def validate_title(self, value):
+        value = strip_tags(value).strip()
+        if not value:
+            raise serializers.ValidationError('Title cannot be empty.')
+        return value
+
+    def validate_description(self, value):
+        return strip_tags(value).strip() if value else ''
+
+    def validate_tech_stack(self, value):
+        return strip_tags(value).strip() if value else ''

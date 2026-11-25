@@ -39,11 +39,13 @@ class ExperienceAPITest(APITestCase):
 
     def test_visitors_and_regular_users_cannot_write(self):
         for user in (None, self.user):
+            # Anonymous requests get 401 (TokenAuthentication challenge); logged-in users get 403.
+            expected = 401 if user is None else 403
             with self.subTest(user=user):
                 self.client.force_authenticate(user=user)
-                self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, 403)
-                self.assertEqual(self.client.patch(self.detail_url, {"title": "Changed"}, format="json").status_code, 403)
-                self.assertEqual(self.client.delete(self.detail_url).status_code, 403)
+                self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, expected)
+                self.assertEqual(self.client.patch(self.detail_url, {"title": "Changed"}, format="json").status_code, expected)
+                self.assertEqual(self.client.delete(self.detail_url).status_code, expected)
                 self.assertEqual(Experience.objects.count(), 1)
                 self.item.refresh_from_db()
                 self.assertEqual(self.item.title, "Research internship")
@@ -90,7 +92,7 @@ class ExperienceAPITest(APITestCase):
         self.assertEqual((created.title, created.description, created.keyfeatures), ("Clean", "Text", ["Feature"]))
 
     def test_star_requires_login_and_uses_current_user(self):
-        self.assertEqual(self.client.post(self.star_url, {}, format="json").status_code, 403)
+        self.assertEqual(self.client.post(self.star_url, {}, format="json").status_code, 401)
         self.client.force_authenticate(user=self.user)
         response = self.client.post(self.star_url, {"user": self.owner.pk}, format="json")
         self.assertEqual(response.status_code, 200)

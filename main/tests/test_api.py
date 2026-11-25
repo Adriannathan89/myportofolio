@@ -51,10 +51,12 @@ class AwardAPITest(APITestCase):
 
     def test_guest_and_visitor_cannot_write(self):
         for user in (None, self.visitor):
+            # Anonymous requests get 401 (TokenAuthentication challenge); logged-in users get 403.
+            expected = 401 if user is None else 403
             self.client.force_authenticate(user=user)
-            self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, 403)
-            self.assertEqual(self.client.patch(self.detail_url, {"title": "Changed"}, format="json").status_code, 403)
-            self.assertEqual(self.client.delete(self.detail_url).status_code, 403)
+            self.assertEqual(self.client.post(self.list_url, self.payload, format="json").status_code, expected)
+            self.assertEqual(self.client.patch(self.detail_url, {"title": "Changed"}, format="json").status_code, expected)
+            self.assertEqual(self.client.delete(self.detail_url).status_code, expected)
         self.assertEqual(Award.objects.count(), 1)
         self.award.refresh_from_db()
         self.assertEqual(self.award.title, "Scholarship")
@@ -98,7 +100,7 @@ class AwardAPITest(APITestCase):
         self.assertFalse(Award.objects.filter(pk=self.award.id).exists())
 
     def test_star_requires_login_and_toggles(self):
-        self.assertEqual(self.client.post(self.star_url).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.post(self.star_url).status_code, status.HTTP_401_UNAUTHORIZED)
         self.client.force_authenticate(user=self.visitor)
         response = self.client.post(self.star_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

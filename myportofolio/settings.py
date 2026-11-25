@@ -31,9 +31,18 @@ SECRET_KEY = "django-insecure-47ev#t@)(gik1w1cvu_5u3^7_m*&9@xg585wcr1!k=jl)n$rjn
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "adrian-nathanael-myportofolio.pws.cs.ui.ac.id"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "10.0.2.2", "adrian-nathanael-myportofolio.pws.cs.ui.ac.id"]
 
 PRODUCTION = os.getenv("PRODUCTION", "False").lower() == "true"
+
+# TokenAuthentication goes first so mobile clients (Authorization: Token <key>)
+# get 401 on missing/invalid tokens; SessionAuthentication keeps the web pages working.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+}
 
 
 # Application definition
@@ -45,7 +54,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "corsheaders",
     "rest_framework",
+    "rest_framework.authtoken",
     "main",
 ]
 
@@ -54,6 +65,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -79,6 +91,17 @@ TEMPLATES = [
 ]
 
 CSRF_TRUSTED_ORIGINS = ["https://adrian-nathanael-myportofolio.pws.cs.ui.ac.id"]
+
+# Local development CORS settings for Flutter Web (Chrome).
+# Allow all origins locally (PRODUCTION=False); restrict in production via
+# CORS_ALLOWED_ORIGINS in .env.prod. Native Android apps do not use CORS.
+CORS_ALLOW_ALL_ORIGINS = not PRODUCTION
+if PRODUCTION:
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
 
 WSGI_APPLICATION = "myportofolio.wsgi.application"
 
